@@ -20,6 +20,13 @@ module MagicScan
     end
   end
 
+  def self.delta last, current
+    size     = last.size
+    n_pixels = size.height * size.width
+    tmp      = last - current
+    tmp.mul(tmp).sum[0] / n_pixels
+  end
+
   class Frames
     include Enumerable
 
