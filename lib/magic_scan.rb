@@ -2,6 +2,24 @@ require 'opencv'
 require 'av_capture'
 
 module MagicScan
+  def self.find_reference frames
+    loop do
+      last_image = frames.next_image
+      window = OpenCV::GUI::Window.new 'simple'
+      window.show_image last_image
+
+      begin
+        case OpenCV::GUI.wait_key
+        when 13
+          break last_image
+        else
+        end
+      ensure
+        window.destroy
+      end
+    end
+  end
+
   class Frames
     include Enumerable
 
