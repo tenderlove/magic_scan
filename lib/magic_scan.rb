@@ -2,6 +2,46 @@ require 'opencv'
 require 'av_capture'
 
 module MagicScan
+  module Contours
+    class Simple
+      def initialize img
+        @img = img
+      end
+
+      def corners
+        contours = []
+        contour_node = processed_image(@img).find_contours(:mode   => OpenCV::CV_RETR_TREE,
+                                            :method => OpenCV::CV_CHAIN_APPROX_SIMPLE)
+        while contour_node
+          unless contour_node.hole?
+            contours << contour_node
+          end
+          contour_node = contour_node.h_next
+        end
+
+        ps = contours.find_all { |c|
+          c.contour_area > 10000
+        }.sort_by { |c|
+          c.contour_area
+        }.map { |c|
+          peri = c.arc_length
+          approx = c.approx_poly(:method => :dp, :recursive => true, :accuracy => 0.02 * peri)
+
+          from = c.min_area_rect2.points
+          return from.rotate
+        }
+      end
+
+      private
+      def processed_image img
+        gray = OpenCV.BGR2GRAY img
+        #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
+        #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
+        gray.canny 100, 255
+      end
+    end
+  end
+
   def self.find_reference frames
     loop do
       last_image = frames.next_image
