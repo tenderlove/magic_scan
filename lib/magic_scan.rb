@@ -27,6 +27,15 @@ module MagicScan
     tmp.mul(tmp).sum[0] / n_pixels
   end
 
+  def self.find_card base, frame, thresh = 100
+    diff = frame.abs_diff base
+    edges = diff.canny thresh, thresh
+    contours = edges.find_contours
+    contours.each do |contour|
+      p contours.length
+    end
+  end
+
   class Frames
     include Enumerable
 
