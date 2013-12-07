@@ -81,21 +81,21 @@ class CardQuery
     @id   = id
     @url  = URI(BASE + "multiverseid=#{id}")
     @body = nil
-    @doc  = nil
+    @dir = File.join(DEST, @id.to_s)
+    @filename = File.join @dir, 'page.html'
   end
 
   def call conn
-    @body = conn.request(@url).body
-    @doc = Nokogiri.HTML @body
-    self
-  end
-
-  def save!
-    dir = File.join(DEST, @id.to_s)
-    FileUtils.mkdir_p dir
-    File.open(File.join(dir, 'page.html'), 'w') do |f|
-      f.write @body
+    if File.exist? @filename
+      @body = File.binread @filename
+    else
+      @body = conn.request(@url).body
+      FileUtils.mkdir_p @dir
+      File.open(@filename, 'w') do |f|
+        f.write @body
+      end
     end
+    self
   end
 end
 
@@ -105,22 +105,24 @@ class CardImageQuery
   attr_reader :body, :id
 
   def initialize id
-    @id   = id
-    @url  = URI(BASE + "multiverseid=#{id}&type=card")
-    @body = nil
+    @id       = id
+    @url      = URI(BASE + "multiverseid=#{id}&type=card")
+    @dir      = File.join(DEST, @id.to_s)
+    @filename = File.join @dir, 'card.jpg'
+    @body     = nil
   end
 
   def call conn
-    @body = conn.request(@url).body
-    self
-  end
-
-  def save!
-    dir = File.join(DEST, @id.to_s)
-    FileUtils.mkdir_p dir
-    File.open(File.join(dir, 'card.jpg'), 'w') do |f|
-      f.write @body
+    if File.exist? @filename
+      @body = File.binread @filename
+    else
+      @body = conn.request(@url).body
+      FileUtils.mkdir_p @dir
+      File.open(@filename, 'w') do |f|
+        f.write @body
+      end
     end
+    self
   end
 end
 
@@ -177,7 +179,7 @@ assets = set.value.card_ids.flat_map { |card_id|
     CardImageQuery.new(card_id),
   ].map { |job| web_executor.execute job }
 }
-assets.each { |a| a.value.save! }
+assets.each { |a| a.value }
 
 #sets.value.map { |set_name|
 #  web_executor.execute SetQuery.new set_name
