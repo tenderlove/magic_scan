@@ -3,9 +3,10 @@ require 'nokogiri'
 require 'thread'
 require 'monitor'
 require 'fileutils'
-Thread.abort_on_exception = true
+require 'logger'
 
-DEST = ARGV[0]
+DEST   = ARGV[0]
+LOGGER = Logger.new $stdout
 
 class ThreadExecutor
   class Promise
@@ -87,7 +88,7 @@ class CardQuery
 
   def call conn
     if File.exist? @filename
-      @body = File.binread @filename
+      LOGGER.info "#{self.class}: cache hit"
     else
       @body = conn.request(@url).body
       FileUtils.mkdir_p @dir
@@ -114,7 +115,7 @@ class CardImageQuery
 
   def call conn
     if File.exist? @filename
-      @body = File.binread @filename
+      LOGGER.info "#{self.class}: cache hit"
     else
       @body = conn.request(@url).body
       FileUtils.mkdir_p @dir
