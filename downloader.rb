@@ -72,16 +72,6 @@ class ThreadExecutor
   end
 end
 
-uri = URI 'http://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid=100'
-web_executor = ThreadExecutor.new 1
-
-#promise = executor.execute do |conn|
-#  response = conn.request uri
-#  doc = Nokogiri.HTML response.body
-#  node = doc.at_css('#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_cardImage')
-#  conn.request(uri + URI(node['src'])).body
-#end
-
 class CardQuery
   BASE = 'http://gatherer.wizards.com/Pages/Card/Details.aspx?'
 
@@ -169,7 +159,9 @@ class SetQuery < Struct.new(:name, :page)
   end
 end
 
-sets = web_executor.execute do |conn|
+web_executor = ThreadExecutor.new 10
+
+set_names = web_executor.execute do |conn|
   uri = URI 'http://gatherer.wizards.com/Pages/Default.aspx'
   response = conn.request uri
   doc = Nokogiri.HTML response.body
@@ -177,15 +169,15 @@ sets = web_executor.execute do |conn|
   nodes.reject { |node| node['value'].empty? }.map { |node| node['value'] }
 end
 
-promise = web_executor.execute SetQuery.new sets.value.first
+set = web_executor.execute SetQuery.new set_names.value.first
 
-card_id = promise.value.card_ids.first
-[
-  CardQuery.new(card_id),
-  CardImageQuery.new(card_id),
-].map { |job| web_executor.execute job }.each do |job|
-  job.value.save!
-end
+assets = set.value.card_ids.flat_map { |card_id|
+  [
+    CardQuery.new(card_id),
+    CardImageQuery.new(card_id),
+  ].map { |job| web_executor.execute job }
+}
+assets.each { |a| a.value.save! }
 
 #sets.value.map { |set_name|
 #  web_executor.execute SetQuery.new set_name
