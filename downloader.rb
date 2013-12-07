@@ -2,7 +2,10 @@ require 'net/http/persistent'
 require 'nokogiri'
 require 'thread'
 require 'monitor'
+require 'fileutils'
 Thread.abort_on_exception = true
+
+DEST = ARGV[0]
 
 class ThreadExecutor
   class Promise
@@ -79,11 +82,64 @@ web_executor = ThreadExecutor.new 1
 #  conn.request(uri + URI(node['src'])).body
 #end
 
+class CardQuery
+  BASE = 'http://gatherer.wizards.com/Pages/Card/Details.aspx?'
+
+  attr_reader :body, :id
+
+  def initialize id
+    @id   = id
+    @url  = URI(BASE + "multiverseid=#{id}")
+    @body = nil
+    @doc  = nil
+  end
+
+  def call conn
+    @body = conn.request(@url).body
+    @doc = Nokogiri.HTML @body
+    self
+  end
+
+  def save!
+    dir = File.join(DEST, @id.to_s)
+    FileUtils.mkdir_p dir
+    File.open(File.join(dir, 'page.html'), 'w') do |f|
+      f.write @body
+    end
+  end
+end
+
+class CardImageQuery
+  BASE = 'http://gatherer.wizards.com/Handlers/Image.ashx?'
+
+  attr_reader :body, :id
+
+  def initialize id
+    @id   = id
+    @url  = URI(BASE + "multiverseid=#{id}&type=card")
+    @body = nil
+  end
+
+  def call conn
+    @body = conn.request(@url).body
+    self
+  end
+
+  def save!
+    dir = File.join(DEST, @id.to_s)
+    FileUtils.mkdir_p dir
+    File.open(File.join(dir, 'card.jpg'), 'w') do |f|
+      f.write @body
+    end
+  end
+end
+
 class SetQuery < Struct.new(:name, :page)
   BASE = 'http://gatherer.wizards.com/Pages/Search/Default.aspx?'
   def initialize name, page = 0
     super
     @body = nil
+    @doc = nil
     @uri = URI(BASE + URI::DEFAULT_PARSER.escape("page=#{page}&set=[\"#{name}\"]"))
   end
 
@@ -93,9 +149,11 @@ class SetQuery < Struct.new(:name, :page)
     self
   end
 
-  def card_urls
+  def card_ids
     @doc.css('span.cardTitle > a').map { |node|
-      [node.text, @uri + URI(node['href'])]
+      url = @uri + URI(node['href'])
+      params = Hash[url.query.split('&').map { |bit| bit.split('=') }]
+      params['multiverseid'].to_i
     }
   end
 
@@ -120,8 +178,15 @@ sets = web_executor.execute do |conn|
 end
 
 promise = web_executor.execute SetQuery.new sets.value.first
-promise = web_executor.execute promise.value.next_page
-p promise.value.next_page
+
+card_id = promise.value.card_ids.first
+[
+  CardQuery.new(card_id),
+  CardImageQuery.new(card_id),
+].map { |job| web_executor.execute job }.each do |job|
+  job.value.save!
+end
+
 #sets.value.map { |set_name|
 #  web_executor.execute SetQuery.new set_name
 #}
