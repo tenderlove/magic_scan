@@ -179,32 +179,30 @@ set_names = web_executor.execute do |conn|
   nodes.reject { |node| node['value'].empty? }.map { |node| node['value'] }
 end
 
-set_name = set_names.value.first
-LOGGER.info "downloading set #{set_name}"
-
-set = web_executor.execute SetQuery.new set_name
-
-current_set = set
 asset_threads = []
-begin
-  assets = current_set.value.card_ids.flat_map { |card_id|
-    [
-      CardQuery.new(card_id),
-      CardImageQuery.new(card_id),
-    ].map { |job| web_executor.execute job }
-  }
-  asset_threads << Thread.new { assets.each { |a| a.value } }
-  next_page = current_set.value.next_page
-  if next_page
-    current_set = web_executor.execute next_page
-  else
-    current_set = next_page
-  end
-end while current_set
-asset_threads.each(&:join)
+set_names.value.each do |set_name|
+  LOGGER.info "downloading set #{set_name}"
 
-#sets.value.map { |set_name|
-#  web_executor.execute SetQuery.new set_name
-#}
+  set = web_executor.execute SetQuery.new set_name
+
+  current_set = set
+  begin
+    assets = current_set.value.card_ids.flat_map { |card_id|
+      [
+        CardQuery.new(card_id),
+        CardImageQuery.new(card_id),
+      ].map { |job| web_executor.execute job }
+    }
+    asset_threads << Thread.new { assets.each { |a| a.value } }
+    next_page = current_set.value.next_page
+    if next_page
+      current_set = web_executor.execute next_page
+    else
+      current_set = next_page
+    end
+  end while current_set
+end
+
+asset_threads.each(&:join)
 
 web_executor.shutdown
