@@ -9,8 +9,10 @@ module MagicScan
       end
 
       def corners
+        processed = processed_image @img
+
         contours = []
-        contour_node = processed_image(@img).find_contours(:mode   => OpenCV::CV_RETR_TREE,
+        contour_node = processed.find_contours(:mode   => OpenCV::CV_RETR_TREE,
                                             :method => OpenCV::CV_CHAIN_APPROX_SIMPLE)
         while contour_node
           unless contour_node.hole?
@@ -19,25 +21,47 @@ module MagicScan
           contour_node = contour_node.h_next
         end
 
-        ps = contours.find_all { |c|
-          c.contour_area > 10000
-        }.sort_by { |c|
-          c.contour_area
-        }.map { |c|
-          peri = c.arc_length
-          approx = c.approx_poly(:method => :dp, :recursive => true, :accuracy => 0.02 * peri)
+        contours = contours.find_all { |c| c.length > 10 }
 
-          from = c.min_area_rect2.points
-          return from.rotate
+        max = contours.max_by { |c|
+          c.contour_area
+        }
+
+        peri = max.arc_length
+        approx = max.approx_poly(:method => :dp, :recursive => true, :accuracy => 0.02 * peri)
+
+        x = approx.convex_hull2.to_a.reverse
+        debug_points x, @img
+        x.map { |point|
+          OpenCV::CvPoint2D32f.new(point)
         }
       end
 
       private
+      def debug_points points, img
+        colors = [
+          OpenCV::CvColor::White,
+          OpenCV::CvColor::Black,
+          OpenCV::CvColor::Blue,
+          OpenCV::CvColor::Green,
+        ]
+        points.each_with_index do |point,i|
+          img.circle!(point, 10, :color => colors[i], :thickness => 5)
+        end
+        show img
+      end
       def processed_image img
         gray = OpenCV.BGR2GRAY img
         #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
         #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
-        gray.canny 100, 255
+        gray.canny 100, 100
+      end
+
+      def show img
+        window = OpenCV::GUI::Window.new 'simple'
+        window.show_image img
+        OpenCV::GUI.wait_key
+        window.destroy
       end
     end
   end

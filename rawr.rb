@@ -5,6 +5,9 @@ img = OpenCV::IplImage.decode_image File.binread(ARGV[0]).bytes
 
 strategy = MagicScan::Contours::Simple.new img
 from = strategy.corners
+from.each do |point|
+  p point.to_s
+end
 
 to = [
   OpenCV::CvPoint2D32f.new(0, 0),
