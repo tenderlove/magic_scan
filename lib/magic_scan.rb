@@ -28,16 +28,31 @@ module MagicScan
         }
 
         peri = max.arc_length
-        approx = max.approx_poly(:method => :dp, :recursive => true, :accuracy => 0.02 * peri)
+        approx = max.approx_poly(:method => :dp,
+                                 :recursive => true,
+                                 :accuracy => 0.02 * peri)
 
         x = approx.convex_hull2.to_a.reverse
-        debug_points x, @img
-        x.map { |point|
+        clockwise x.map { |point|
           OpenCV::CvPoint2D32f.new(point)
-        }
+        }, @img.size
       end
 
       private
+      # probably a better way, but care =~ 0
+      def clockwise points, size
+        [
+          [0, 0],                    # upper left
+          [size.width, 0],           # upper right
+          [size.width, size.height], # bottom right
+          [0, size.height],          # bottom left
+        ].map { |x,y|
+          points.min_by { |point|
+            Math.sqrt(((point.x - x) ** 2) + ((point.y - y) ** 2))
+          }
+        }
+      end
+
       def debug_points points, img
         colors = [
           OpenCV::CvColor::White,
@@ -46,9 +61,10 @@ module MagicScan
           OpenCV::CvColor::Green,
         ]
         points.each_with_index do |point,i|
-          img.circle!(point, 10, :color => colors[i], :thickness => 5)
+          img.circle!(point, 10, :color => colors.fetch(i, OpenCV::CvColor::White), :thickness => 5)
         end
         show img
+        points
       end
       def processed_image img
         gray = OpenCV.BGR2GRAY img
