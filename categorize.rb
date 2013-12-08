@@ -5,11 +5,7 @@ require 'uri'
 base_dir = ARGV[0]
 
 class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, :pt, :rarity, :rating
-  class SingleParser
-    def self.parse doc
-      new(doc, "ctl00_ctl00_ctl00_MainContent_SubContent_SubContent").card
-    end
-
+  class Parser
     attr_reader :doc, :id
 
     def initialize doc, id
@@ -40,7 +36,7 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
     def converted_mana_cost
       node = doc.at_css "##{id}_cmcRow > div.value"
       if node
-        node.text.strip
+        node.text.strip.to_i
       else
         nil
       end
@@ -78,7 +74,7 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
 
     def rating
       node = doc.at_css "##{id}_currentRating_textRating"
-      node.text.strip
+      node.text.strip.to_f
     end
 
     private
@@ -89,23 +85,10 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
     end
   end
 
-  module DualParser
-    def self.parse doc
-      [
-        SingleParser.new(doc, 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ctl08').card,
-        SingleParser.new(doc, 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ctl07').card
-      ]
-    end
-  end
-
   def self.parse doc
-    if doc.at_css '#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ctl08_nameRow'
-      DualParser.parse(doc).each do |card|
-        yield card
-      end
-    else
-      yield SingleParser.parse doc
-    end
+    doc.xpath("//div[contains(@id,'nameRow')]").map { |node|
+      Parser.new(doc, node['id'].match(/^(.*)_nameRow$/)[1]).card
+    }
   end
 end
 
@@ -116,8 +99,8 @@ Dir.chdir base_dir do
       doc = File.open('page.html') do |f|
         Nokogiri.HTML f
       end
-      p :CARD_ID => dir
-      Card.parse(doc) do |card|
+      p :CARD_ID => dir.to_i
+      Card.parse(doc).each do |card|
         [
           :name,
           :mana_cost,
@@ -142,7 +125,7 @@ Dir.chdir base_dir do
           Nokogiri.HTML f
         end
         p :CARD_ID => dir
-        Card.parse(doc) do |card|
+        Card.parse(doc).each do |card|
           [
             :name,
             :mana_cost,
