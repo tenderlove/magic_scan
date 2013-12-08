@@ -5,17 +5,29 @@ require 'uri'
 base_dir = ARGV[0]
 
 class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, :pt, :rarity, :rating
-  module SingleParser
+  class SingleParser
     def self.parse doc
+      new(doc, "ctl00_ctl00_ctl00_MainContent_SubContent_SubContent").card
     end
 
-    def self.name doc
-      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_nameRow > div.value"
+    attr_reader :doc, :id
+
+    def initialize doc, id
+      @doc = doc
+      @id  = id
+    end
+
+    def card
+      Card.new name, mana_cost, converted_mana_cost, types, text, pt, rarity, rating
+    end
+
+    def name
+      node = doc.at_css "##{id}_nameRow > div.value"
       node.text.strip
     end
 
-    def self.mana_cost doc
-      nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_manaRow > div.value > img"
+    def mana_cost
+      nodes = doc.css "##{id}_manaRow > div.value > img"
       if nodes.any?
         nodes.map { |node|
           extract_mana_color node
@@ -25,8 +37,8 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
       end
     end
 
-    def self.converted_mana_cost doc
-      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_cmcRow > div.value"
+    def converted_mana_cost
+      node = doc.at_css "##{id}_cmcRow > div.value"
       if node
         node.text.strip
       else
@@ -34,13 +46,13 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
       end
     end
 
-    def self.types doc
-      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_typeRow > div.value"
+    def types
+      node = doc.at_css "##{id}_typeRow > div.value"
       node.text.strip
     end
 
-    def self.text doc
-      nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_textRow > div.value > div"
+    def text
+      nodes = doc.css "##{id}_textRow > div.value > div"
       nodes.each { |n|
         n.css('img').each { |img|
           img.add_next_sibling extract_mana_color img
@@ -50,8 +62,8 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
       nodes.map { |n| n.text }.join "\n"
     end
 
-    def self.pt doc
-      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ptRow > div.value"
+    def pt
+      node = doc.at_css "##{id}_ptRow > div.value"
       if node
         node.text.strip
       else
@@ -59,21 +71,30 @@ class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, 
       end
     end
 
-    def self.rarity doc
-      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_rarityRow > div.value"
+    def rarity
+      node = doc.at_css "##{id}_rarityRow > div.value"
       node.text.strip
     end
 
-    def self.rating doc
-      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_currentRating_textRating"
+    def rating
+      node = doc.at_css "##{id}_currentRating_textRating"
       node.text.strip
     end
 
     private
-    def self.extract_mana_color node
+    def extract_mana_color node
       URI(node['src']).query.split('&').map { |part|
         part.split '='
       }.find { |l,r| l == 'name' }[1]
+    end
+  end
+
+  module DualParser
+    def self.parse doc
+      [
+        SingleParser.new(doc, 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ctl08').card,
+        SingleParser.new(doc, 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ctl07').card
+      ]
     end
   end
 
