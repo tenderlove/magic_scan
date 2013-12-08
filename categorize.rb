@@ -4,10 +4,6 @@ require 'uri'
 
 base_dir = ARGV[0]
 
-doc = File.open(File.join(base_dir, '373661', 'page.html')) do |f|
-  Nokogiri.HTML f
-end
-
 class Card
   attr_reader :doc
 
@@ -22,14 +18,22 @@ class Card
 
   def mana_cost
     nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_manaRow > div.value > img"
-    nodes.map { |node|
-      extract_mana_color node
-    }.join
+    if nodes.any?
+      nodes.map { |node|
+        extract_mana_color node
+      }.join
+    else
+      nil
+    end
   end
 
   def converted_mana_cost
     node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_cmcRow > div.value"
-    node.text.strip
+    if node
+      node.text.strip
+    else
+      nil
+    end
   end
 
   def types
@@ -50,16 +54,20 @@ class Card
 
   def pt
     node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ptRow > div.value"
-    node.text.strip
-  end
-
-  def pt
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ptRow > div.value"
-    node.text.strip
+    if node
+      node.text.strip
+    else
+      nil
+    end
   end
 
   def rarity
     node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_rarityRow > div.value"
+    node.text.strip
+  end
+
+  def rating
+    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_currentRating_textRating"
     node.text.strip
   end
 
@@ -71,6 +79,37 @@ class Card
   end
 end
 
+Dir.chdir base_dir do
+  Dir.entries('.').each do |dir|
+    next if dir == '.' || dir == '..'
+    next unless File.directory? dir
+
+    Dir.chdir dir do
+      doc = File.open('page.html') do |f|
+        Nokogiri.HTML f
+      end
+      p :CARD_ID => dir
+      card = Card.new doc
+      [
+        :name,
+        :mana_cost,
+        :converted_mana_cost,
+        :types,
+        :text,
+        :pt,
+        :rarity,
+        :rating
+      ].each do |attr|
+        p attr => card.send(attr)
+      end
+    end
+  end
+end
+__END__
+doc = File.open(File.join(base_dir, '373661', 'page.html')) do |f|
+  Nokogiri.HTML f
+end
+
 card = Card.new doc
 p card.name
 p card.mana_cost
@@ -79,3 +118,4 @@ p card.types
 p card.text
 p card.pt
 p card.rarity
+p card.rating
