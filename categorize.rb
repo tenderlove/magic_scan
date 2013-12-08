@@ -4,103 +4,137 @@ require 'uri'
 
 base_dir = ARGV[0]
 
-class Card
-  attr_reader :doc
-
-  def initialize doc
-    @doc = doc
-  end
-
-  def name
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_nameRow > div.value"
-    node.text.strip
-  end
-
-  def mana_cost
-    nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_manaRow > div.value > img"
-    if nodes.any?
-      nodes.map { |node|
-        extract_mana_color node
-      }.join
-    else
-      nil
+class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, :pt, :rarity, :rating
+  module SingleParser
+    def self.parse doc
     end
-  end
 
-  def converted_mana_cost
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_cmcRow > div.value"
-    if node
+    def self.name doc
+      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_nameRow > div.value"
       node.text.strip
-    else
-      nil
     end
-  end
 
-  def types
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_typeRow > div.value"
-    node.text.strip
-  end
+    def self.mana_cost doc
+      nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_manaRow > div.value > img"
+      if nodes.any?
+        nodes.map { |node|
+          extract_mana_color node
+        }.join
+      else
+        nil
+      end
+    end
 
-  def text
-    nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_textRow > div.value > div"
-    nodes.each { |n|
-      n.css('img').each { |img|
-        img.add_next_sibling extract_mana_color img
+    def self.converted_mana_cost doc
+      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_cmcRow > div.value"
+      if node
+        node.text.strip
+      else
+        nil
+      end
+    end
+
+    def self.types doc
+      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_typeRow > div.value"
+      node.text.strip
+    end
+
+    def self.text doc
+      nodes = doc.css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_textRow > div.value > div"
+      nodes.each { |n|
+        n.css('img').each { |img|
+          img.add_next_sibling extract_mana_color img
+        }
+        n.css('img').each(&:unlink)
       }
-      n.css('img').each(&:unlink)
-    }
-    nodes.map { |n| n.text }.join "\n"
-  end
+      nodes.map { |n| n.text }.join "\n"
+    end
 
-  def pt
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ptRow > div.value"
-    if node
+    def self.pt doc
+      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ptRow > div.value"
+      if node
+        node.text.strip
+      else
+        nil
+      end
+    end
+
+    def self.rarity doc
+      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_rarityRow > div.value"
       node.text.strip
-    else
-      nil
+    end
+
+    def self.rating doc
+      node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_currentRating_textRating"
+      node.text.strip
+    end
+
+    private
+    def self.extract_mana_color node
+      URI(node['src']).query.split('&').map { |part|
+        part.split '='
+      }.find { |l,r| l == 'name' }[1]
     end
   end
 
-  def rarity
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_rarityRow > div.value"
-    node.text.strip
-  end
-
-  def rating
-    node = doc.at_css "#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_currentRating_textRating"
-    node.text.strip
-  end
-
-  private
-  def extract_mana_color node
-    URI(node['src']).query.split('&').map { |part|
-      part.split '='
-    }.find { |l,r| l == 'name' }[1]
+  def self.parse doc
+    if doc.at_css '#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_ctl08_nameRow'
+      DualParser.parse(doc).each do |card|
+        yield card
+      end
+    else
+      yield SingleParser.parse doc
+    end
   end
 end
 
 Dir.chdir base_dir do
-  Dir.entries('.').each do |dir|
-    next if dir == '.' || dir == '..'
-    next unless File.directory? dir
-
+  if ARGV[1]
+    dir = ARGV[1]
     Dir.chdir dir do
       doc = File.open('page.html') do |f|
         Nokogiri.HTML f
       end
       p :CARD_ID => dir
-      card = Card.new doc
-      [
-        :name,
-        :mana_cost,
-        :converted_mana_cost,
-        :types,
-        :text,
-        :pt,
-        :rarity,
-        :rating
-      ].each do |attr|
-        p attr => card.send(attr)
+      Card.parse(doc) do |card|
+        [
+          :name,
+          :mana_cost,
+          :converted_mana_cost,
+          :types,
+          :text,
+          :pt,
+          :rarity,
+          :rating
+        ].each do |attr|
+          p attr => card.send(attr)
+        end
+      end
+    end
+  else
+    Dir.entries('.').each do |dir|
+      next if dir == '.' || dir == '..'
+      next unless File.directory? dir
+
+      Dir.chdir dir do
+        doc = File.open('page.html') do |f|
+          Nokogiri.HTML f
+        end
+        p :CARD_ID => dir
+        Card.parse(doc) do |card|
+          [
+            :name,
+            :mana_cost,
+            :converted_mana_cost,
+            :types,
+            :text,
+            :pt,
+            :rarity,
+            :rating
+          ].each do |attr|
+            p attr => card.send(attr)
+          end
+        end
       end
     end
   end
