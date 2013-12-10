@@ -1,7 +1,99 @@
 require 'opencv'
 require 'av_capture'
+require 'sqlite3'
+require 'phashion'
 
 module MagicScan
+  class ReferenceImage
+    attr_reader :mvid, :filename, :id
+
+    def self.create mvid, hash, filename
+      right = hash & 0xFFFFFFFF
+      left  = (hash >> 32) & 0xFFFFFFFF
+      new mvid, left, right, filename
+    end
+
+    def self.find_by_id id
+      stmt = Database.stmt_cache "SELECT * FROM reference_images WHERE id = ?"
+      row = stmt.execute id
+      instance = allocate
+      instance.init_with_hash Hash[stmt.columns.zip row.first]
+      instance
+    end
+
+    def initialize mvid, fingerprint_l, fingerprint_r, filename
+      @mvid          = mvid
+      @fingerprint_l = fingerprint_l
+      @fingerprint_r = fingerprint_r
+      @filename      = filename
+      @id            = nil
+    end
+
+    def init_with_hash hash
+      hash.each_pair { |k,v|
+        instance_variable_set :"@#{k}", v
+      }
+    end
+
+    def fingerprint
+      (@fingerprint_l << 32) + @fingerprint_r
+    end
+
+    def save!
+      stmt = Database.stmt_cache "INSERT INTO reference_images
+                  (mv_id, fingerprint_l, fingerprint_r, filename) VALUES (?, ?, ?, ?)"
+      stmt.execute @mvid, @fingerprint_l, @fingerprint_r, @filename
+      @id = Database.connection.last_insert_row_id
+    end
+  end
+
+  module Database
+    @stmt_cache = {}
+
+    class << self
+      attr_accessor :connection
+
+      def stmt_cache sql
+        @stmt_cache[sql] ||= connection.prepare sql
+      end
+    end
+
+    def self.make_schema! db
+      stmt = db.prepare "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+      result = stmt.execute 'reference_cards'
+      if result.to_a.empty?
+        db.execute <<-eosql
+CREATE TABLE reference_cards (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  "name" varchar(255),
+  "mv_id" INTEGER,
+  "reference_image_id" INTEGER,
+  "mana_cost" varchar(255),
+  "converted_mana_cost" INTEGER,
+  "types" varchar(255),
+  "text" text,
+  "pt" varchar(255),
+  "rarity" varchar(255),
+  "rating" float,
+  "created_at" datetime default current_timestamp)
+        eosql
+      end
+
+      result = stmt.execute 'reference_images'
+      if result.to_a.empty?
+        db.execute <<-eosql
+CREATE TABLE reference_images (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  "mv_id" INTEGER,
+  "fingerprint_l" INTEGER,
+  "fingerprint_r" INTEGER,
+  "filename" varchar(255),
+  "created_at" datetime default current_timestamp)
+        eosql
+      end
+    end
+  end
+
   module Contours
     class Simple
       def initialize img
