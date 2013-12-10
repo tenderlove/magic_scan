@@ -14,11 +14,35 @@ module MagicScan
     end
 
     def self.find_by_id id
-      stmt = Database.stmt_cache "SELECT * FROM reference_images WHERE id = ?"
-      row = stmt.execute id
+      result = Database.exec "SELECT * FROM reference_images WHERE id = ?", id
+      cols = result.columns
+      row  = result.first
       instance = allocate
-      instance.init_with_hash Hash[stmt.columns.zip row.first]
+      instance.init_with_hash Hash[cols.zip row]
       instance
+    end
+
+    def self.find_by_hash hash
+      right  = hash & 0xFFFFFFFF
+      left   = (hash >> 32) & 0xFFFFFFFF
+      result = Database.exec "SELECT * FROM reference_images
+                            WHERE fingerprint_l = ? AND fingerprint_r = ?",
+                            [left, right]
+
+      row      = result.first
+      instance = allocate
+      instance.init_with_hash Hash[result.columns.zip row]
+      instance
+    end
+
+    def self.find_with_matching_hash hash
+      result = Database.exec "SELECT id, fingerprint_l, fingerprint_r
+                                  FROM reference_images"
+      row = result.min_by do |id, left, right|
+        row_hash = (left << 32) + right
+        Phashion.hamming_distance hash, row_hash
+      end
+      find_by_id row.first
     end
 
     def initialize mvid, fingerprint_l, fingerprint_r, filename
@@ -30,9 +54,7 @@ module MagicScan
     end
 
     def init_with_hash hash
-      hash.each_pair { |k,v|
-        instance_variable_set :"@#{k}", v
-      }
+      hash.each_pair { |k,v| instance_variable_set :"@#{k}", v }
     end
 
     def fingerprint
@@ -40,29 +62,58 @@ module MagicScan
     end
 
     def save!
-      stmt = Database.stmt_cache "INSERT INTO reference_images
-                  (mv_id, fingerprint_l, fingerprint_r, filename) VALUES (?, ?, ?, ?)"
-      stmt.execute @mvid, @fingerprint_l, @fingerprint_r, @filename
+      Database.exec "INSERT INTO reference_images
+                  (mv_id, fingerprint_l, fingerprint_r, filename) VALUES (?, ?, ?, ?)",
+                  [@mvid, @fingerprint_l, @fingerprint_r, @filename]
       @id = Database.connection.last_insert_row_id
     end
   end
 
   module Database
-    @stmt_cache = {}
+    class Connection
+      def initialize database
+        @conn       = SQLite3::Database.new database
+        @stmt_cache = {}
+      end
 
-    class << self
-      attr_accessor :connection
+      def execute sql, binds
+        cache = @stmt_cache[sql] ||= {
+          :stmt => @conn.prepare(sql)
+        }
+        stmt = cache[:stmt]
+        cols = cache[:cols] ||= stmt.columns.map(&:freeze)
+        stmt.reset!
+        stmt.bind_params binds
+        Result.new cols, stmt.to_a
+      end
 
-      def stmt_cache sql
-        @stmt_cache[sql] ||= connection.prepare sql
+      def last_insert_row_id
+        @conn.last_insert_row_id
       end
     end
 
-    def self.make_schema! db
-      stmt = db.prepare "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
-      result = stmt.execute 'reference_cards'
-      if result.to_a.empty?
-        db.execute <<-eosql
+    class Result < Struct.new :columns, :rows
+      include Enumerable
+      def empty?; rows.empty?; end
+      def each; rows.each { |row| yield row }; end
+    end
+
+    class << self
+      attr_accessor :connection
+      def connect! database
+        self.connection = Connection.new database
+      end
+
+      def exec sql, binds = []
+        self.connection.execute sql, binds
+      end
+    end
+
+    def self.make_schema!
+      result = Database.exec "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    ['reference_cards']
+      if result.empty?
+        Database.exec <<-eosql
 CREATE TABLE reference_cards (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   "name" varchar(255),
@@ -79,9 +130,10 @@ CREATE TABLE reference_cards (
         eosql
       end
 
-      result = stmt.execute 'reference_images'
-      if result.to_a.empty?
-        db.execute <<-eosql
+      result = Database.exec "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    ['reference_images']
+      if result.empty?
+        Database.exec <<-eosql
 CREATE TABLE reference_images (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   "mv_id" INTEGER,
