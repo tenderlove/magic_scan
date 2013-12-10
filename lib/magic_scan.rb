@@ -6,6 +6,49 @@ require 'magic_scan/database'
 require 'magic_scan/reference_image'
 
 module MagicScan
+  module Photo
+    class Capture < Struct.new :output
+      def take_photo
+        connection = output.video_connection
+        output.capture_on(connection).data
+      end
+    end
+
+    def self.run
+      session = AVCapture::Session.new # AVCaptureSession
+      dev     = AVCapture.devices.find(&:video?) # AVCaptureDevice
+
+      $stderr.puts "Starting session on #{dev.name}"
+      output  = AVCapture::StillImageOutput.new # AVCaptureOutput subclass
+      session.add_input dev.as_input
+      session.add_output output
+      session.start_running!
+      yield Capture.new output
+      session.stop_running!
+    end
+
+    def self.find_and_crop img, width, height
+      img = OpenCV::IplImage.decode_image img.bytes
+
+      strategy = MagicScan::Contours::Simple.new img
+      from = strategy.corners
+
+      to = [
+        OpenCV::CvPoint2D32f.new(0, 0),
+        OpenCV::CvPoint2D32f.new(width, 0),
+        OpenCV::CvPoint2D32f.new(width, height),
+        OpenCV::CvPoint2D32f.new(0, height),
+      ]
+      transform = OpenCV::CvMat.get_perspective_transform(from, to)
+      new_img = img.warp_perspective transform
+      new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
+      window = OpenCV::GUI::Window.new 'simple'
+      window.show_image new_img
+      OpenCV::GUI.wait_key
+      new_img.encode_image(".jpg").pack 'C*'
+    end
+  end
+
   module Contours
     class Simple
       def initialize img
