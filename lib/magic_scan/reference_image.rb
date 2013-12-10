@@ -39,6 +39,9 @@ module MagicScan
         row_hash = (left << 32) + right
         Phashion.hamming_distance hash, row_hash
       end
+      _, left, right = row
+      row_hash = (left << 32) + right
+      return nil unless Phashion.hamming_distance(hash, row_hash) < 15
       find_by_id row.first
     end
 

@@ -33,6 +33,8 @@ module MagicScan
       strategy = MagicScan::Contours::Simple.new img
       from = strategy.corners
 
+      return nil if from.empty?
+
       to = [
         OpenCV::CvPoint2D32f.new(0, 0),
         OpenCV::CvPoint2D32f.new(width, 0),
@@ -42,9 +44,6 @@ module MagicScan
       transform = OpenCV::CvMat.get_perspective_transform(from, to)
       new_img = img.warp_perspective transform
       new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
-      window = OpenCV::GUI::Window.new 'simple'
-      window.show_image new_img
-      OpenCV::GUI.wait_key
       new_img.encode_image(".jpg").pack 'C*'
     end
   end
@@ -70,22 +69,33 @@ module MagicScan
 
         contours = contours.find_all { |c| c.length > 10 }
 
-        max = contours.max_by { |c|
-          c.contour_area
-        }
+        max = contours.max_by { |c| c.contour_area }
 
         peri = max.arc_length
         approx = max.approx_poly(:method => :dp,
                                  :recursive => true,
                                  :accuracy => 0.02 * peri)
 
-        x = approx.convex_hull2.to_a.reverse
-        clockwise x.map { |point|
+        x = approx.convex_hull2.to_a
+        clockwise_points = clockwise x.map { |point|
           OpenCV::CvPoint2D32f.new(point)
         }, @img.size
+
+        top_length = distance clockwise_points[0], clockwise_points[1]
+        side_length = distance clockwise_points[0], clockwise_points[3]
+
+        if top_length > side_length
+          []
+        else
+          clockwise_points
+        end
       end
 
       private
+      def distance a, b
+        Math.sqrt(((a.x - b.x) ** 2) + ((a.y - b.y) ** 2))
+      end
+
       # probably a better way, but care =~ 0
       def clockwise points, size
         [
