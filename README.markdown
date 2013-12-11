@@ -1,8 +1,8 @@
-= MagicScan
+# MagicScan
 
 * http://example.com
 
-== Description
+## Description
 
 It's a thing that scans magic cards.
 
@@ -32,22 +32,22 @@ $ ruby -I lib pic_and_crop.rb database.sqlite3 public
 
 You should be able to hit http://localhost:8000 and scan cards
 
-== Examples
+## Examples
 
 no
 
-== Dependencies
+## Dependencies
 
 * no
 
-== Current Problems
+## Current Problems
 
 It doesn't support multiple variations on cards (for example land cards).  The
 downloader needs to be fixed to download different variations.
 
 This is a WIP, please don't hassle me!
 
-== License
+## License
 
 Copyright 2013 Aaron Patterson, et al.
 
