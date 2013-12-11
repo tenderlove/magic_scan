@@ -52,7 +52,6 @@ module MagicScan
       transform = OpenCV::CvMat.get_perspective_transform(from, to)
       new_img = img.warp_perspective transform
       new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
-      show new_img
       new_img.encode_image(".jpg").pack 'C*'
     end
   end
@@ -65,7 +64,6 @@ module MagicScan
 
       def corners
         processed = processed_image @img
-        show processed
 
         contours = []
         contour_node = processed.find_contours(:mode   => OpenCV::CV_RETR_TREE,
@@ -81,6 +79,8 @@ module MagicScan
 
         max = contours.max_by { |c| c.contour_area }
 
+        return [] unless max
+
         peri = max.arc_length
         approx = max.approx_poly(:method => :dp,
                                  :recursive => true,
@@ -90,7 +90,6 @@ module MagicScan
         clockwise_points = clockwise x.map { |point|
           OpenCV::CvPoint2D32f.new(point)
         }, @img.size
-        debug_points clockwise_points, @img
 
         top_length = distance clockwise_points[0], clockwise_points[1]
         side_length = distance clockwise_points[0], clockwise_points[3]

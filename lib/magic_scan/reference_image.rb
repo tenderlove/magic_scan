@@ -106,9 +106,8 @@ module MagicScan
       _, left, right = row
       row_hash = (left << 32) + right
       distance = Phashion.hamming_distance(hash, row_hash)
-      if distance < 15
-        p :HAM_DISTANCE => distance
-        find_by_id row.first
+      if distance < 11
+        [distance, find_by_id(row.first)]
       else
         nil
       end
