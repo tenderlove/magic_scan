@@ -4,6 +4,7 @@ require 'sqlite3'
 require 'phashion'
 require 'magic_scan/database'
 require 'magic_scan/reference_image'
+require 'magic_scan/parser'
 
 module MagicScan
   module Photo
@@ -12,6 +13,13 @@ module MagicScan
         connection = output.video_connection
         output.capture_on(connection).data
       end
+    end
+
+    def self.show img
+      window = OpenCV::GUI::Window.new 'simple'
+      window.show_image img
+      OpenCV::GUI.wait_key
+      window.destroy
     end
 
     def self.run
@@ -44,6 +52,7 @@ module MagicScan
       transform = OpenCV::CvMat.get_perspective_transform(from, to)
       new_img = img.warp_perspective transform
       new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
+      show new_img
       new_img.encode_image(".jpg").pack 'C*'
     end
   end
@@ -56,6 +65,7 @@ module MagicScan
 
       def corners
         processed = processed_image @img
+        show processed
 
         contours = []
         contour_node = processed.find_contours(:mode   => OpenCV::CV_RETR_TREE,
@@ -80,6 +90,7 @@ module MagicScan
         clockwise_points = clockwise x.map { |point|
           OpenCV::CvPoint2D32f.new(point)
         }, @img.size
+        debug_points clockwise_points, @img
 
         top_length = distance clockwise_points[0], clockwise_points[1]
         side_length = distance clockwise_points[0], clockwise_points[3]
@@ -123,6 +134,7 @@ module MagicScan
         show img
         points
       end
+
       def processed_image img
         gray = OpenCV.BGR2GRAY img
         #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
@@ -136,6 +148,7 @@ module MagicScan
         OpenCV::GUI.wait_key
         window.destroy
       end
+
     end
   end
 

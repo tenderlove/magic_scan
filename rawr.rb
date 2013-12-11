@@ -18,8 +18,9 @@ new_img.set_roi OpenCV::CvRect.new(0, 0, 223, 310)
 window = OpenCV::GUI::Window.new 'simple'
 window.show_image new_img
 OpenCV::GUI.wait_key
-new_img.save_image "cropped.jpg"
+new_img.save_image "cropped2.jpg"
 
+exit!
 require 'phashion'
 
 img1 = Phashion::Image.new 'cropped.jpg'

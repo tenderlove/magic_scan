@@ -58,6 +58,15 @@ module MagicScan
 
   class ReferenceCard < Model
     self.table_name = "reference_cards"
+
+    def self.find_by_mv_id id
+      result = Database.exec "SELECT * FROM reference_cards WHERE mv_id = ?", [id]
+      row      = result.first
+      instance = allocate
+      data = Hash[result.columns.zip row]
+      instance.init_with_attrs data['id'], data
+      instance
+    end
   end
 
   class ReferenceImage < Model
@@ -96,8 +105,13 @@ module MagicScan
       end
       _, left, right = row
       row_hash = (left << 32) + right
-      return nil unless Phashion.hamming_distance(hash, row_hash) < 15
-      find_by_id row.first
+      distance = Phashion.hamming_distance(hash, row_hash)
+      if distance < 15
+        p :HAM_DISTANCE => distance
+        find_by_id row.first
+      else
+        nil
+      end
     end
 
     def fingerprint

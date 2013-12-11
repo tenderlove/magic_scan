@@ -1,159 +1,82 @@
 require 'nokogiri'
 require 'sqlite3'
 require 'uri'
+require 'magic_scan'
+require 'find'
+
+#if $0 == __FILE__
+require 'optparse'
+
+options = {
+  :db_file => File.expand_path('database.sqlite3')
+}
+
+OptionParser.new { |opts|
+  opts.on("--database [FILE]", "SQLite3 Database File") do |file|
+    options[:db_file] = file
+  end
+
+  opts.on("-h", "--help", "Show this message") do
+    puts opts
+    exit!
+  end
+}.parse!
 
 base_dir = ARGV[0]
 
-class Card < Struct.new :name, :mana_cost, :converted_mana_cost, :types, :text, :pt, :rarity, :rating
-  class Parser
-    attr_reader :doc, :id
+Thread.abort_on_exception = true
+MagicScan::Database.connect! options[:db_file]
+MagicScan::Database.make_schema!
 
-    def initialize doc, id
-      @doc = doc
-      @id  = id
-    end
+hash_queue  = Queue.new
+info_queue  = Queue.new
+write_queue = Queue.new
 
-    def card
-      Card.new name, mana_cost, converted_mana_cost, types, text, pt, rarity, rating
-    end
-
-    def name
-      node = doc.at_css "##{id}_nameRow > div.value"
-      node.text.strip
-    end
-
-    def mana_cost
-      nodes = doc.css "##{id}_manaRow > div.value > img"
-      if nodes.any?
-        nodes.map { |node|
-          extract_mana_color node
-        }.join
-      else
-        nil
-      end
-    end
-
-    def converted_mana_cost
-      node = doc.at_css "##{id}_cmcRow > div.value"
-      if node
-        node.text.strip.to_i
-      else
-        nil
-      end
-    end
-
-    def types
-      node = doc.at_css "##{id}_typeRow > div.value"
-      node.text.strip
-    end
-
-    def text
-      nodes = doc.css "##{id}_textRow > div.value > div"
-      nodes.each { |n|
-        n.css('img').each { |img|
-          img.add_next_sibling extract_mana_color img
-        }
-        n.css('img').each(&:unlink)
-      }
-      nodes.map { |n| n.text }.join "\n"
-    end
-
-    def pt
-      node = doc.at_css "##{id}_ptRow > div.value"
-      if node
-        node.text.strip
-      else
-        nil
-      end
-    end
-
-    def rarity
-      node = doc.at_css "##{id}_rarityRow > div.value"
-      node.text.strip
-    end
-
-    def rating
-      node = doc.at_css "##{id}_currentRating_textRating"
-      node.text.strip.to_f
-    end
-
-    private
-    def extract_mana_color node
-      URI(node['src']).query.split('&').map { |part|
-        part.split '='
-      }.find { |l,r| l == 'name' }[1]
-    end
+write_pool = Thread.new {
+  while job = write_queue.pop
+    job.save!
   end
+}
 
-  def self.parse doc
-    doc.xpath("//div[contains(@id,'nameRow')]").map { |node|
-      Parser.new(doc, node['id'].match(/^(.*)_nameRow$/)[1]).card
-    }
-  end
-end
+Find.find(base_dir).each do |file|
+  next if File.directory? file
 
-Dir.chdir base_dir do
-  if ARGV[1]
-    dir = ARGV[1]
-    Dir.chdir dir do
-      doc = File.open('page.html') do |f|
-        Nokogiri.HTML f
-      end
-      p :CARD_ID => dir.to_i
-      Card.parse(doc).each do |card|
-        [
-          :name,
-          :mana_cost,
-          :converted_mana_cost,
-          :types,
-          :text,
-          :pt,
-          :rarity,
-          :rating
-        ].each do |attr|
-          p attr => card.send(attr)
-        end
-      end
-    end
+  mv_id = file.split(File::SEPARATOR)[-2].to_i
+
+  case file
+  when /jpg$/
+    hash_queue << [mv_id, file]
+  when /html$/
+    info_queue << [mv_id, file]
   else
-    Dir.entries('.').each do |dir|
-      next if dir == '.' || dir == '..'
-      next unless File.directory? dir
-
-      Dir.chdir dir do
-        doc = File.open('page.html') do |f|
-          Nokogiri.HTML f
-        end
-        p :CARD_ID => dir
-        Card.parse(doc).each do |card|
-          [
-            :name,
-            :mana_cost,
-            :converted_mana_cost,
-            :types,
-            :text,
-            :pt,
-            :rarity,
-            :rating
-          ].each do |attr|
-            p attr => card.send(attr)
-          end
-        end
-      end
-    end
+    p "oh no!" => file
   end
 end
-__END__
-doc = File.open(File.join(base_dir, '373661', 'page.html')) do |f|
-  Nokogiri.HTML f
-end
 
-card = Card.new doc
-p card.name
-p card.mana_cost
-p card.converted_mana_cost
-p card.types
-p card.text
-p card.pt
-p card.rarity
-p card.rating
+hash_pool = 4.times.map {
+  Thread.new {
+    while job = hash_queue.pop
+      mv_id, file = *job
+      hash  = Phashion.image_hash_for file
+      img = MagicScan::ReferenceImage.create mv_id, hash, file
+      write_queue << img
+    end
+  }
+}
+hash_pool.size.times { hash_queue << nil }
+hash_pool.each(&:join)
+
+info_pool = 4.times.map {
+  Thread.new {
+    while job = info_queue.pop
+      mv_id, file = *job
+      MagicScan::Parser.parse_file(file, mv_id).each do |card|
+        write_queue << card
+      end
+    end
+  }
+}
+info_pool.size.times { info_queue << nil }
+info_pool.each(&:join)
+write_queue << nil
+write_pool.join
