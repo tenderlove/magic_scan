@@ -40,7 +40,10 @@ no
 
 * no
 
-== Installation
+== Current Problems
+
+It doesn't support multiple variations on cards (for example land cards).  The
+downloader needs to be fixed to download different variations.
 
 == License
 
