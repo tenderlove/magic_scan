@@ -47,8 +47,7 @@ module MagicScan
 CREATE TABLE reference_cards (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   "name" varchar(255),
-  "mv_id" INTEGER,
-  "reference_image_id" INTEGER,
+  "mv_id" INTEGER NOT NULL,
   "mana_cost" varchar(255),
   "converted_mana_cost" INTEGER,
   "types" varchar(255),
@@ -66,10 +65,10 @@ CREATE TABLE reference_cards (
         Database.exec <<-eosql
 CREATE TABLE reference_images (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-  "mv_id" INTEGER,
-  "fingerprint_l" INTEGER,
-  "fingerprint_r" INTEGER,
-  "filename" varchar(255),
+  "mv_id" INTEGER NOT NULL,
+  "fingerprint_l" INTEGER NOT NULL,
+  "fingerprint_r" INTEGER NOT NULL,
+  "filename" varchar(255) NOT NULL,
   "created_at" datetime default current_timestamp)
         eosql
       end
