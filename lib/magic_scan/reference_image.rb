@@ -4,6 +4,13 @@ module MagicScan
   class Model
     attr_reader :id
 
+    class << self
+      attr_accessor :table_name
+      def inherited klass
+        klass.table_name = nil
+      end
+    end
+
     def initialize attributes
       @attributes = attributes.each_with_object({}) { |(k,v),o|
         o[k.to_s] = v
@@ -18,23 +25,34 @@ module MagicScan
       }
     end
 
+    def save!
+      raise "updates not supported!" if @id
+      @id = insert self.class.table_name, @attributes
+      self
+    end
+
+    private
+
+    def insert table, attributes
+      sql = "INSERT INTO #{table} (#{attributes.keys.sort.join(", ")})" \
+        " VALUES (#{attributes.values.map { "?" }.join ", "})"
+
+      Database.exec sql, attributes.keys.sort.map { |k| attributes[k] }
+      Database.connection.last_insert_row_id
+    end
+
     def method_missing method, *args, &block
       @attributes.fetch(method.to_s) { super }
     end
   end
 
   class ReferenceCard < Model
-    def save!
-      sql = "INSERT INTO reference_cards #{@attributes.keys.sort.join(", ")}"
-        " VALUES (#{@attributes.values.map { "?" }.join ", "})"
-
-      Database.exec sql, @attributes.keys.sort.map { |k| @attributes[k] }
-      @id = Database.connection.last_insert_row_id
-      self
-    end
+    self.table_name = "reference_cards"
   end
 
   class ReferenceImage < Model
+    self.table_name = "reference_images"
+
     def self.create mvid, hash, filename
       right = hash & 0xFFFFFFFF
       left  = (hash >> 32) & 0xFFFFFFFF
@@ -84,15 +102,6 @@ module MagicScan
 
     def fingerprint
       (fingerprint_l << 32) + fingerprint_r
-    end
-
-    def save!
-      sql = "INSERT INTO reference_images (#{@attributes.keys.sort.join(", ")})" \
-        " VALUES (#{@attributes.values.map { "?" }.join ", "})"
-
-      Database.exec sql, @attributes.keys.sort.map { |k| @attributes[k] }
-      @id = Database.connection.last_insert_row_id
-      self
     end
   end
 end
