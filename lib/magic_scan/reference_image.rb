@@ -4,6 +4,16 @@ module MagicScan
   class Model
     attr_reader :id
 
+    def self.find_by_id id
+      result = Database.exec "SELECT * FROM #{self.table_name} WHERE id = ?", id
+      cols = result.columns
+      row  = result.first
+      instance = allocate
+      data = Hash[cols.zip row]
+      instance.init_with_attrs data['id'], data
+      instance
+    end
+
     class << self
       attr_accessor :table_name
       def inherited klass
@@ -61,16 +71,6 @@ module MagicScan
                :fingerprint_r => right,
                :filename      => filename }
       new data
-    end
-
-    def self.find_by_id id
-      result = Database.exec "SELECT * FROM reference_images WHERE id = ?", id
-      cols = result.columns
-      row  = result.first
-      instance = allocate
-      data = Hash[cols.zip row]
-      instance.init_with_attrs data['id'], data
-      instance
     end
 
     def self.find_by_hash hash

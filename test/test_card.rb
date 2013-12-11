@@ -20,6 +20,11 @@ module MagicScan
     def test_save
       card = ReferenceCard.new card_info
       card.save!
+      refute_nil card.id
+      card2 = ReferenceCard.find_by_id card.id
+      card_info.each_pair do |k,v|
+        assert_equal v, card2.send(k)
+      end
     end
 
     def card_info
