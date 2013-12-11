@@ -45,6 +45,8 @@ no
 It doesn't support multiple variations on cards (for example land cards).  The
 downloader needs to be fixed to download different variations.
 
+This is a WIP, please don't hassle me!
+
 == License
 
 Copyright 2013 Aaron Patterson, et al.
