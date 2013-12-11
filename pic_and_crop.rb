@@ -1,5 +1,32 @@
 require 'magic_scan'
 require 'tempfile'
+require 'webrick'
+require 'json'
+
+image_queue = Queue.new
+
+Thread.abort_on_exception = true
+
+Thread.new {
+  server = WEBrick::HTTPServer.new :Port => 8000,
+  :DocumentRoot => ARGV[1]
+
+  trap('INT') { server.shutdown }
+
+  server.mount_proc '/stream' do |req, res|
+    rd, wr = IO.pipe
+    res['Content-Type'] = 'text/event-stream'
+    res.body = rd
+    res.chunked = true
+    Thread.new {
+      while image = image_queue.pop
+        wr.write "data: #{JSON.dump("image" => [image].pack('m'))}\n\n"
+      end
+    }
+  end
+
+  server.start
+}
 
 MagicScan::Database.connect! ARGV[0]
 
@@ -26,6 +53,7 @@ MagicScan::Photo.run do |conn|
       tf.unlink
       if ref
         puts "FOUND REFERENCE"
+        image_queue << img
         break(ref)
       else
         puts "NO REFERENCE :("

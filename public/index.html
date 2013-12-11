@@ -1,0 +1,16 @@
+<html>
+  <head>
+<script>
+var source = new EventSource('/stream');
+source.addEventListener('message', function(e) {
+    var data = JSON.parse(e.data);
+    var img = document.getElementById('card');
+    var img_data = 'data:image/jpeg;base64,' + data.image;
+    img.setAttribute('src', img_data);
+}, false);
+</script>
+  </head>
+  <img id="card" />
+<body>
+</body>
+</html>
