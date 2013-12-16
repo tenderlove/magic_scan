@@ -72,30 +72,6 @@ module MagicScan
   class ReferenceImage < Model
     self.table_name = "reference_images"
 
-    def self.create mvid, hash, filename
-      right = hash & 0xFFFFFFFF
-      left  = (hash >> 32) & 0xFFFFFFFF
-      data = { :mv_id         => mvid,
-               :fingerprint_l => left,
-               :fingerprint_r => right,
-               :filename      => filename }
-      new data
-    end
-
-    def self.find_by_hash hash
-      right  = hash & 0xFFFFFFFF
-      left   = (hash >> 32) & 0xFFFFFFFF
-      result = Database.exec "SELECT * FROM reference_images
-                            WHERE fingerprint_l = ? AND fingerprint_r = ?",
-                            [left, right]
-
-      row      = result.first
-      instance = allocate
-      data = Hash[result.columns.zip row]
-      instance.init_with_attrs data['id'], data
-      instance
-    end
-
     def self.find_with_matching_hash hash
       result = Database.exec "SELECT id, fingerprint_l, fingerprint_r
                                   FROM reference_images"

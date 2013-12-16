@@ -11,11 +11,22 @@ class ImageTest < ActiveSupport::TestCase
     file = File.join(FIXTURES, 'cremate.jpg')
     hash = Phashion.image_hash_for file
     img  = ReferenceImage.create!(:card => card,
-                                  :hash  => hash,
+                                  :fingerprint  => hash,
                                   :filename => file)
     img.save!
 
     img2 = ReferenceImage.find_by_hash hash
     assert_equal img, img2
+  end
+
+  def test_fingerprint
+    card = cards :cremate
+    file = File.join FIXTURES, 'cremate.jpg'
+
+    hash = Phashion.image_hash_for file
+    img  = ReferenceImage.create!(:card => card,
+                                  :fingerprint  => hash,
+                                  :filename => file)
+    assert_equal hash, img.fingerprint
   end
 end
