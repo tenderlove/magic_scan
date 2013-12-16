@@ -2,7 +2,6 @@ require 'minitest/autorun'
 require 'magic_scan'
 
 class ReferenceImageTest < MiniTest::Test
-  FIXTURES = File.join File.dirname(__FILE__), 'fixtures'
 
   def setup
     MagicScan::Database.connect! ':memory:'
@@ -19,15 +18,6 @@ class ReferenceImageTest < MiniTest::Test
     assert_same_image img, img2
   end
 
-  def test_find_by_hash
-    file = File.join(FIXTURES, 'cremate.jpg')
-    hash = Phashion.image_hash_for file
-    img  = MagicScan::ReferenceImage.create 1, hash, file
-    img.save!
-
-    img2 = MagicScan::ReferenceImage.find_by_hash hash
-    assert_same_image img, img2
-  end
 
   def test_find_by_similar_hash
     file = File.join(FIXTURES, 'cremate.jpg')

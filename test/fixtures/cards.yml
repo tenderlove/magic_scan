@@ -1,0 +1,9 @@
+cremate:
+  name: cremate
+  mv_id: 1
+  mana_cost: B3
+  converted_mana_cost: 4
+  types: some type
+  text: some text
+  rarity: super rare
+  rating: 1.2
