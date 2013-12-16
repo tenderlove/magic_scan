@@ -10,9 +10,9 @@ Right now, to get this working, you need to do this:
 
 1. download all the cards from gatherer (it took about 40min on my machine)
 
-
 ```
-$ ruby -I lib downloader.rb cards
+$ bundle install
+$ rake download
 ```
 
 2. load the cards in to a sqlite3 database
