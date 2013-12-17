@@ -39,6 +39,7 @@ ActiveRecord::Schema.define(version: 20131216215526) do
     t.datetime "updated_at"
   end
 
+  add_index "images", ["filename"], name: "index_images_on_filename", unique: true
   add_index "images", ["fingerprint_l", "fingerprint_r"], name: "index_images_on_fingerprint_l_and_fingerprint_r"
   add_index "images", ["type"], name: "index_images_on_type"
 

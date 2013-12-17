@@ -39,9 +39,11 @@ module MagicScan
 
       exe = MagicScan::ThreadExecutor.new 8
 
-      infos.map { |info|
+      latches = infos.map { |info|
+        latch = MagicScan::Latch.new 3
         exe.execute {
           info.fingerprint = Phashion.image_hash_for info.source_file
+          latch.release
         }
 
         exe.execute {
@@ -49,24 +51,30 @@ module MagicScan
           info.digest = hex
           FileUtils.mkdir_p info.dest_dir
           FileUtils.cp info.source_file, info.dest_file
+          latch.release
         }
 
         exe.execute {
           info.cards = MagicScan::Parser.parse_file info.source_html, info.mv_id
+          latch.release
         }
+        [info, latch]
       }
 
-      exe.shutdown
-
-      info.each { |info|
-        img = ReferenceImage.create!(:fingerprint => info.fingerprint,
-                                     :filename    => info.dest_file)
+      latches.each { |info, latch|
+        latch.await
+        img = ReferenceImage.find_by_filename(info.dest_file)
+        unless img
+          img = ReferenceImage.create!(:fingerprint => info.fingerprint,
+                                       :filename    => info.dest_file)
+        end
         info.cards.each do |card_info|
           card = Card.new card_info
           card.image = img
           card.save!
         end
       }
+      exe.shutdown
     end
   end
 end

@@ -10,5 +10,6 @@ class CreateImages < ActiveRecord::Migration
     end
     add_index :images, :type
     add_index :images, [:fingerprint_l, :fingerprint_r]
+    add_index :images, :filename, :unique => true
   end
 end
