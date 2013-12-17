@@ -6,8 +6,6 @@ class ImageTest < ActiveSupport::TestCase
   fixtures :cards
 
   def test_find_by_hash
-    card = cards :cremate
-
     file = File.join(FIXTURES, 'cremate.jpg')
     hash = Phashion.image_hash_for file
     img  = ReferenceImage.create!(:fingerprint  => hash,
@@ -19,12 +17,28 @@ class ImageTest < ActiveSupport::TestCase
   end
 
   def test_fingerprint
-    card = cards :cremate
     file = File.join FIXTURES, 'cremate.jpg'
 
     hash = Phashion.image_hash_for file
     img  = ReferenceImage.create!(:fingerprint  => hash,
                                   :filename => file)
     assert_equal hash, img.fingerprint
+  end
+
+  def test_find_similar
+    img = create 'cremate.jpg'
+    file = File.join FIXTURES, 'cremate2.jpg'
+    hash = Phashion.image_hash_for file
+
+    similar = ReferenceImage.find_similar hash
+
+    assert_equal [img], similar
+  end
+
+  def create filename
+    file = File.join FIXTURES, 'cremate.jpg'
+
+    hash = Phashion.image_hash_for file
+    ReferenceImage.create!(:fingerprint => hash, :filename => file)
   end
 end

@@ -18,6 +18,12 @@ class ReferenceImage < Image
           :fingerprint_l => left).first
   end
 
+  def self.find_similar hash, limit = 10
+    all.sort_by { |rec|
+      Phashion.hamming_distance rec.fingerprint, hash
+    }.first limit
+  end
+
   def fingerprint
     (fingerprint_l << 32) + fingerprint_r
   end
