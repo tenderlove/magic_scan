@@ -23,21 +23,23 @@ ActiveRecord::Schema.define(version: 20131216215526) do
     t.string   "pt"
     t.string   "rarity"
     t.float    "rating"
+    t.integer  "image_id"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
+
+  add_index "cards", ["mv_id"], name: "index_cards_on_mv_id"
 
   create_table "images", force: true do |t|
-    t.string   "type"
-    t.integer  "card_id"
-    t.integer  "fingerprint_l"
-    t.integer  "fingerprint_r"
-    t.string   "filename"
+    t.string   "type",          null: false
+    t.integer  "fingerprint_l", null: false
+    t.integer  "fingerprint_r", null: false
+    t.string   "filename",      null: false
     t.datetime "created_at"
     t.datetime "updated_at"
   end
 
-  add_index "images", ["card_id"], name: "index_images_on_card_id"
+  add_index "images", ["fingerprint_l", "fingerprint_r"], name: "index_images_on_fingerprint_l_and_fingerprint_r"
   add_index "images", ["type"], name: "index_images_on_type"
 
 end

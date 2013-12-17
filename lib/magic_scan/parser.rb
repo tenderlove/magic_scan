@@ -1,4 +1,3 @@
-require 'magic_scan/reference_image'
 require 'nokogiri'
 
 module MagicScan
@@ -22,15 +21,17 @@ module MagicScan
     end
 
     def card mv_id
-      MagicScan::ReferenceCard.new :name                => name,
-                                   :mana_cost           => mana_cost,
-                                   :converted_mana_cost => converted_mana_cost,
-                                   :types               => types,
-                                   :text                => text,
-                                   :pt                  => pt,
-                                   :rarity              => rarity,
-                                   :rating              => rating,
-                                   :mv_id               => mv_id
+      {
+        :name                => name,
+        :mana_cost           => mana_cost,
+        :converted_mana_cost => converted_mana_cost,
+        :types               => types,
+        :text                => text,
+        :pt                  => pt,
+        :rarity              => rarity,
+        :rating              => rating,
+        :mv_id               => mv_id
+      }
     end
 
     def name

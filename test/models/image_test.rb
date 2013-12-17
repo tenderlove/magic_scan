@@ -10,8 +10,7 @@ class ImageTest < ActiveSupport::TestCase
 
     file = File.join(FIXTURES, 'cremate.jpg')
     hash = Phashion.image_hash_for file
-    img  = ReferenceImage.create!(:card => card,
-                                  :fingerprint  => hash,
+    img  = ReferenceImage.create!(:fingerprint  => hash,
                                   :filename => file)
     img.save!
 
@@ -24,8 +23,7 @@ class ImageTest < ActiveSupport::TestCase
     file = File.join FIXTURES, 'cremate.jpg'
 
     hash = Phashion.image_hash_for file
-    img  = ReferenceImage.create!(:card => card,
-                                  :fingerprint  => hash,
+    img  = ReferenceImage.create!(:fingerprint  => hash,
                                   :filename => file)
     assert_equal hash, img.fingerprint
   end

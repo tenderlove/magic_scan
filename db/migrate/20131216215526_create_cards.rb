@@ -10,8 +10,10 @@ class CreateCards < ActiveRecord::Migration
       t.string  :pt
       t.string  :rarity
       t.float   :rating
+      t.references :image
 
       t.timestamps
     end
+    add_index :cards, :mv_id
   end
 end
