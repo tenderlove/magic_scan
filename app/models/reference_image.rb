@@ -23,8 +23,13 @@ class ReferenceImage < Image
     left   = (hash >> 32) & 0xFFFFFFFF
 
     select("*, hamming_distance(fingerprint_l, fingerprint_r, #{left}, #{right}) as distance")
+      .includes(:cards)
       .order("distance ASC")
       .limit(3)
+  end
+
+  def self.find_similar_to_file file
+    find_similar Phashion.image_hash_for file
   end
 
   def fingerprint

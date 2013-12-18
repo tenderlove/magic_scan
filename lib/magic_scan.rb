@@ -1,10 +1,6 @@
 require 'opencv'
 require 'av_capture'
-require 'sqlite3'
 require 'phashion'
-require 'magic_scan/database'
-require 'magic_scan/reference_image'
-require 'magic_scan/parser'
 
 module MagicScan
   module Photo

@@ -36,6 +36,16 @@ class ImageTest < ActiveSupport::TestCase
     assert similar.first.distance
   end
 
+  def test_similar_to_file
+    img = create 'cremate.jpg'
+    file = File.join FIXTURES, 'cremate2.jpg'
+
+    similar = ReferenceImage.find_similar_to_file file
+
+    assert_equal [img], similar
+    assert similar.first.distance
+  end
+
   def create filename
     file = File.join FIXTURES, 'cremate.jpg'
 

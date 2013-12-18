@@ -15,6 +15,7 @@ gem 'uglifier', '>= 1.3.0'
 gem 'jquery-rails'
 
 gem 'nokogiri'
-gem 'ruby-opencv'
-gem 'phashion'
+gem 'ruby-opencv', :github => 'ruby-opencv/ruby-opencv' # needs 0bd0f342c4f44
+gem 'phashion', :path => '/Users/aaron/git/phashion'
 gem 'net-http-persistent'
+gem 'av_capture'

@@ -36,8 +36,6 @@ Thread.new {
   server.start
 }
 
-MagicScan::Database.connect! ARGV[0]
-
 MagicScan::Photo.run do |conn|
   loop do
     img = loop {

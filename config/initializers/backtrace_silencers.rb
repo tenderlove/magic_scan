@@ -10,11 +10,16 @@ class ActiveRecord::Base
     alias :old :sqlite3_connection
     def sqlite3_connection config
       conn = old config
-      conn.connection.define_function('hamming_distance') { |l1,r1,l2,r2|
-        left  = (l1 << 32) + r1
-        right = (l2 << 32) + r2
-        Phashion.hamming_distance left, right
-      }
+      if conn.connection.respond_to? :enable_load_extension
+        conn.connection.enable_load_extension true
+        conn.connection.load_extension Phashion.so_file
+      else
+        conn.connection.define_function('hamming_distance') { |l1,r1,l2,r2|
+          left  = (l1 << 32) + r1
+          right = (l2 << 32) + r2
+          Phashion.hamming_distance left, right
+        }
+      end
       conn
     end
   end
