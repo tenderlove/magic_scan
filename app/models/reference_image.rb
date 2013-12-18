@@ -19,9 +19,12 @@ class ReferenceImage < Image
   end
 
   def self.find_similar hash, limit = 10
-    all.sort_by { |rec|
-      Phashion.hamming_distance rec.fingerprint, hash
-    }.first limit
+    right  = hash & 0xFFFFFFFF
+    left   = (hash >> 32) & 0xFFFFFFFF
+
+    select("*, hamming_distance(fingerprint_l, fingerprint_r, #{left}, #{right}) as distance")
+      .order("distance ASC")
+      .limit(3)
   end
 
   def fingerprint

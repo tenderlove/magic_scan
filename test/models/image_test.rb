@@ -33,6 +33,7 @@ class ImageTest < ActiveSupport::TestCase
     similar = ReferenceImage.find_similar hash
 
     assert_equal [img], similar
+    assert similar.first.distance
   end
 
   def create filename
