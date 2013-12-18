@@ -5,22 +5,70 @@ var source = new EventSource('/stream');
 source.addEventListener('message', function(e) {
     var data = JSON.parse(e.data);
 
-    var scanned_image = document.getElementById('card');
-    var img_data = 'data:image/jpeg;base64,' + data.scanned_image;
-    scanned_image.setAttribute('src', img_data);
+    var taken_photo = {
+      picture: data.scanned_image,
+      cards: []
+    };
 
-    var ref_image = document.getElementById('ref_card');
-    var img_data = 'data:image/jpeg;base64,' + data.ref_image;
-    ref_image.setAttribute('src', img_data);
+    var matches = [taken_photo].concat(data.matches);
+    var images = document.querySelectorAll("#images > li > div > img");
+    var titles = document.querySelectorAll("#images > li > div > p");
 
-    var title = document.getElementById('title');
-    title.innerHTML = data.title;
+    for (var i = 0; i < images.length; i++) {
+      var possibility = matches[i];
+      var img_data = 'data:image/jpeg;base64,' + possibility.picture;
+      images[i].setAttribute('src', img_data);
+      var text = possibility.cards.map(function(card) {
+        return card.name + " " + possibility.distance;
+      }).join();
+      titles[i].innerHTML = text;
+    }
 }, false);
 </script>
+<style>
+
+ul li {
+  display: inline;
+}
+
+div.image {
+  float: left;
+  display: inline;
+  margin: 10px;
+}
+
+div.image p {
+  text-align: center;
+}
+
+</style>
   </head>
 <body>
-  <h1 id="title"></h1>
-  <img id="card" />
-  <img id="ref_card" />
+  <ul id="images">
+    <li>
+      <div class="image">
+        <img/>
+        <p></p>
+      </div>
+    </li>
+    <li>
+      <div class="image">
+        <img/>
+        <p></p>
+      </div>
+    </li>
+    <li>
+      <div class="image">
+        <img/>
+        <p></p>
+      </div>
+    </li>
+    <li>
+      <div class="image">
+        <img/>
+        <p></p>
+      </div>
+    </li>
+  </ul>
 </body>
 </html>

@@ -7,7 +7,17 @@ image_queue = Queue.new
 
 Thread.abort_on_exception = true
 
-server = WEBrick::HTTPServer.new :Port => 8000, :DocumentRoot => ARGV[1]
+server = WEBrick::HTTPServer.new :Port => 8000, :DocumentRoot => ARGV[0]
+
+def image_to_json img
+  {
+    'picture' => [File.read(img.filename)].pack('m'),
+    'distance' => img.distance,
+    'cards' => img.cards.map { |card|
+      { 'name' => card.name }
+    }
+  }
+end
 
 Thread.new {
   server.mount_proc '/stream' do |req, res|
@@ -17,11 +27,10 @@ Thread.new {
     res.chunked = true
     Thread.new {
       while job = image_queue.pop
-        image, ref_img, refcard = job
+        image, ref_images = job
         data = {
           "scanned_image" => [image].pack('m'),
-          "ref_image"     => [File.read(ref_img.filename)].pack('m'),
-          "title"         => refcard.name
+          "matches"       => ref_images
         }
         begin
           wr.write "data: #{JSON.dump(data)}\n\n"
@@ -44,17 +53,17 @@ MagicScan::Photo.run do |conn|
       break(data) if data
     }
 
+    puts "got img"
     tf = Tempfile.open 'card.jpg'
+    tf.binmode
     tf.write img
     tf.flush
     hash = Phashion.image_hash_for tf.path
-    distance, ref = MagicScan::ReferenceImage.find_with_matching_hash hash
+    refs = ReferenceImage.find_similar(hash, 3).to_a
     tf.close
     tf.unlink
-    if ref
-      card = MagicScan::ReferenceCard.find_by_mv_id ref.mv_id
-      image_queue << [img, ref, card]
-      p [card.name, ref.filename, distance]
+    if refs.any?
+      image_queue << [img, refs.map { |r| image_to_json r }]
     else
       print "."
     end
