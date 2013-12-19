@@ -1,3 +1,3 @@
 class Card < ActiveRecord::Base
-  has_and_belongs_to_many :image
+  has_and_belongs_to_many :images
 end

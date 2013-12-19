@@ -32,8 +32,6 @@ module MagicScan
     end
 
     def self.find_and_crop img, width, height
-      img = OpenCV::IplImage.decode_image img.bytes
-
       strategy = MagicScan::Contours::Simple.new img
       from = strategy.corners
 

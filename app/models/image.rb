@@ -1,5 +1,13 @@
+require 'fileutils'
+
 class Image < ActiveRecord::Base
   has_and_belongs_to_many :cards
+
+  after_destroy :rm_image
+
+  def rm_image
+    FileUtils.rm filename
+  end
 
   def self.create! attributes
     if hash = attributes.delete(:fingerprint)
@@ -9,6 +17,16 @@ class Image < ActiveRecord::Base
       attributes[:fingerprint_r] = right
     end
     super
+  end
+
+  def self.build attributes
+    if hash = attributes.delete(:fingerprint)
+      right  = hash & 0xFFFFFFFF
+      left   = (hash >> 32) & 0xFFFFFFFF
+      attributes[:fingerprint_l] = left
+      attributes[:fingerprint_r] = right
+    end
+    new attributes
   end
 
   def self.find_by_hash hash

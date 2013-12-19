@@ -14,12 +14,28 @@ def image_to_json img
     'picture' => [File.read(img.filename)].pack('m'),
     'distance' => img.distance,
     'cards' => img.cards.map { |card|
-      { 'name' => card.name }
+      { 'name' => card.name, 'id' => card.id }
     }
   }
 end
 
 Thread.new {
+  server.mount_proc '/cards' do |req, res|
+    query    = req.query
+    img      = query['scanned_card'].unpack('m').first
+    card_ids = query['card_ids'].split(',').map(&:to_i)
+    cards    = Card.where(:id => card_ids).to_a
+    user_img = UserImage.build_from_bytes img
+
+    UserImage.transaction do
+      user_img.save!
+      cards.each do |card|
+        card.images << user_img
+      end
+    end
+    res.body = "saved: #{cards.map(&:name).join(", ")}"
+  end
+
   server.mount_proc '/stream' do |req, res|
     rd, wr = IO.pipe
     res['Content-Type'] = 'text/event-stream'
@@ -45,25 +61,40 @@ Thread.new {
   server.start
 }
 
+def detect_cards img
+  tf = Tempfile.open 'card.jpg'
+  tf.binmode
+  tf.write img
+  tf.flush
+  hash = Phashion.image_hash_for tf.path
+  refs = Image.find_similar(hash, 3).to_a
+  tf.close
+  tf.unlink
+  refs
+end
+
 MagicScan::Photo.run do |conn|
+  last_image = nil
+  last_top   = nil
+
   loop do
+    full_image = nil
+
     img = loop {
-      image = conn.take_photo
-      data = MagicScan::Photo.find_and_crop image, 233, 310
+      full_image = OpenCV::IplImage.decode_image conn.take_photo.bytes
+      data = MagicScan::Photo.find_and_crop full_image, 233, 310
       break(data) if data
     }
 
+    last_image ||= full_image
+    delta = MagicScan.delta(last_image, full_image)
+
     puts "got img"
-    tf = Tempfile.open 'card.jpg'
-    tf.binmode
-    tf.write img
-    tf.flush
-    hash = Phashion.image_hash_for tf.path
-    refs = ReferenceImage.find_similar(hash, 3).to_a
-    tf.close
-    tf.unlink
+    refs = detect_cards img
+
     if refs.any?
       image_queue << [img, refs.map { |r| image_to_json r }]
+      sleep 1
     else
       print "."
     end
