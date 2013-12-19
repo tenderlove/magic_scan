@@ -16,6 +16,6 @@ gem 'jquery-rails'
 
 gem 'nokogiri'
 gem 'ruby-opencv', :github => 'ruby-opencv/ruby-opencv' # needs 0bd0f342c4f44
-gem 'phashion', :path => '/Users/aaron/git/phashion'
+gem 'phashion', :github => 'tenderlove/phashion', :branch => 'aaron'
 gem 'net-http-persistent'
 gem 'av_capture'
