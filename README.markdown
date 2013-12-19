@@ -18,16 +18,13 @@ $ rake download
 2. load the cards in to a sqlite3 database
 
 ```
-$ ruby -I lib categorize.rb cards
+$ rake categorize
 ```
-
-You should end up with a `database.sqlite3` file that contains card info and
-card hashes.
 
 3. Run the server
 
 ```
-$ ruby -I lib pic_and_crop.rb database.sqlite3 public
+$ bundle exec bin/rails runner pic_and_crop.rb public
 ```
 
 You should be able to hit http://localhost:8000 and scan cards
