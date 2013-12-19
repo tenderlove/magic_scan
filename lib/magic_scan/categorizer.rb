@@ -39,7 +39,7 @@ module MagicScan
 
       exe = MagicScan::ThreadExecutor.new 8
 
-      latches = infos.map { |info|
+      latches = infos.each_with_index.map { |info, i|
         latch = MagicScan::Latch.new 3
         exe.execute {
           info.fingerprint = Phashion.image_hash_for info.source_file
@@ -58,6 +58,7 @@ module MagicScan
           info.cards = MagicScan::Parser.parse_file info.source_html, info.mv_id
           latch.release
         }
+
         [info, latch]
       }
 
@@ -70,8 +71,8 @@ module MagicScan
         end
         info.cards.each do |card_info|
           card = Card.new card_info
-          card.image = img
           card.save!
+          img.cards << card
         end
       }
       exe.shutdown
