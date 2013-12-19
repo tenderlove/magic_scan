@@ -74,20 +74,12 @@ def detect_cards img
 end
 
 MagicScan::Photo.run do |conn|
-  last_image = nil
-  last_top   = nil
-
   loop do
-    full_image = nil
-
     img = loop {
       full_image = OpenCV::IplImage.decode_image conn.take_photo.bytes
       data = MagicScan::Photo.find_and_crop full_image, 233, 310
       break(data) if data
     }
-
-    last_image ||= full_image
-    delta = MagicScan.delta(last_image, full_image)
 
     puts "got img"
     refs = detect_cards img
