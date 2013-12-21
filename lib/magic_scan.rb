@@ -4,13 +4,6 @@ require 'phashion'
 
 module MagicScan
   module Photo
-    class Capture < Struct.new :output
-      def take_photo
-        connection = output.video_connection
-        output.capture_on(connection).data
-      end
-    end
-
     def self.show img
       window = OpenCV::GUI::Window.new 'simple'
       window.show_image img
@@ -18,40 +11,62 @@ module MagicScan
       window.destroy
     end
 
-    def self.run
-      session = AVCapture::Session.new # AVCaptureSession
-      dev     = AVCapture.devices.find(&:video?) # AVCaptureDevice
+    def self.run dev
+      frames    = MagicScan::Frames.new dev
+      fc        = MagicScan::Photo::Cropper.new 233, 310
+      processor = MagicScan::Photo::Processor.new
+      corners   = MagicScan::Photo::Simple.new
 
-      $stderr.puts "Starting session on #{dev.name}"
-      output  = AVCapture::StillImageOutput.new # AVCaptureOutput subclass
-      session.add_input dev.as_input
-      session.add_output output
-      session.start_running!
-      yield Capture.new output
-      session.stop_running!
+      frames.each do |img|
+        processor.process img do |canny|
+          corners.process(canny, img) do |points|
+            fc.process(points, img) do |cut|
+              yield cut
+            end
+          end
+        end
+      end
     end
 
-    def self.find_and_crop img, width, height
-      strategy = MagicScan::Contours::Simple.new img
-      from = strategy.corners
-
-      return nil if from.empty?
-
-      to = [
-        OpenCV::CvPoint2D32f.new(0, 0),
-        OpenCV::CvPoint2D32f.new(width, 0),
-        OpenCV::CvPoint2D32f.new(width, height),
-        OpenCV::CvPoint2D32f.new(0, height),
-      ]
-      transform = OpenCV::CvMat.get_perspective_transform(from, to)
-      new_img = img.warp_perspective transform
-      new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
-      yield new_img
-      new_img.encode_image(".jpg").pack 'C*'
+    def self.to_jpg img
+      img.encode_image(".jpg").pack 'C*'
     end
-  end
 
-  module Contours
+    class Processor
+      def initialize thresh = 100
+        @thresh = thresh
+      end
+
+      def process img
+        gray = OpenCV.BGR2GRAY img
+        #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
+        #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
+        yield gray.canny @thresh, @thresh
+      end
+    end
+
+    class Cropper
+      attr_reader :width, :height, :to
+
+      def initialize width, height
+        @to = [
+          OpenCV::CvPoint2D32f.new(0, 0),
+          OpenCV::CvPoint2D32f.new(width, 0),
+          OpenCV::CvPoint2D32f.new(width, height),
+          OpenCV::CvPoint2D32f.new(0, height),
+        ]
+        @width = width
+        @height = height
+      end
+
+      def process from, img
+        transform = OpenCV::CvMat.get_perspective_transform(from, to)
+        new_img = img.warp_perspective transform
+        new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
+        yield new_img
+      end
+    end
+
     class Simple
       def process processed, img
         contours = []
@@ -128,25 +143,6 @@ module MagicScan
         OpenCV::GUI.wait_key
         window.destroy
       end
-
-    end
-  end
-
-  def self.find_reference frames
-    loop do
-      last_image = frames.next_image
-      window = OpenCV::GUI::Window.new 'simple'
-      window.show_image last_image
-
-      begin
-        case OpenCV::GUI.wait_key
-        when 13
-          break last_image
-        else
-        end
-      ensure
-        window.destroy
-      end
     end
   end
 
@@ -155,28 +151,5 @@ module MagicScan
     n_pixels = size.height * size.width
     tmp      = last - current
     tmp.mul(tmp).sum[0] / n_pixels
-  end
-
-  def self.find_card base, frame, thresh = 100
-    diff = frame.abs_diff base
-    edges = diff.canny thresh, thresh
-    contours = edges.find_contours
-    contours.each do |contour|
-      p contours.length
-    end
-  end
-
-  class GSFilter
-    include Enumerable
-
-    def initialize enum
-      @enum = enum
-    end
-
-    def next_image
-      OpenCV.RGB2GRAY @enum.next_image
-    end
-
-    def each; loop { yield next_image }; end
   end
 end
