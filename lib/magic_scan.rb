@@ -68,8 +68,8 @@ module MagicScan
 
         max = contours.max_by { |c| c.contour_area }
 
-        return [] unless max
-        return [] unless max.contour_area > 100_00
+        return unless max
+        return unless max.contour_area > 100_00
 
         peri = max.arc_length
         approx = max.approx_poly(:method => :dp,
@@ -84,9 +84,7 @@ module MagicScan
         top_length = distance clockwise_points[0], clockwise_points[1]
         side_length = distance clockwise_points[0], clockwise_points[3]
 
-        if top_length > side_length
-          []
-        else
+        unless top_length > side_length
           yield clockwise_points
         end
       end
