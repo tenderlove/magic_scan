@@ -1,23 +1,38 @@
-require File.expand_path('../boot', __FILE__)
-
-require 'rails/all'
-
-# Require the gems listed in Gemfile, including any gems
-# you've limited to :test, :development, or :production.
-Bundler.require(*Rails.groups)
+require 'active_record'
+require 'phashion'
 
 module MagicScan
-  class Application < Rails::Application
-    # Settings in config/environments/* take precedence over those specified here.
-    # Application configuration should go into files in config/initializers
-    # -- all .rb files in that directory are automatically loaded.
+  db_root = File.expand_path File.join(File.dirname(__FILE__), '..', 'db')
 
-    # Set Time.zone default to the specified zone and make Active Record auto-convert to this zone.
-    # Run "rake -D time" for a list of tasks for finding time zone names. Default is UTC.
-    # config.time_zone = 'Central Time (US & Canada)'
+  DB_ENV = {
+    'production'  => "sqlite3://#{db_root}/production.sqlite3",
+    'test'        => "sqlite3://#{db_root}/test.sqlite3",
+    'development' => "sqlite3://#{db_root}/development.sqlite3"
+  }
+  env = ENV['RAILS_ENV'] || 'development'
+  ActiveRecord::Base.establish_connection DB_ENV[env]
+end
 
-    # The default locale is :en and all translations from config/locales/*.rb,yml are auto loaded.
-    # config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}').to_s]
-    # config.i18n.default_locale = :de
+class ActiveRecord::Base
+  class << self
+    alias :old :sqlite3_connection
+    def sqlite3_connection config
+      conn = old config
+      if conn.connection.respond_to? :enable_load_extension
+        conn.connection.enable_load_extension true
+        conn.connection.load_extension Phashion.so_file
+      else
+        conn.connection.define_function('hamming_distance') { |l1,r1,l2,r2|
+          left  = (l1 << 32) + r1
+          right = (l2 << 32) + r2
+          Phashion.hamming_distance left, right
+        }
+      end
+      conn
+    end
   end
+end
+
+class ActiveRecord::ConnectionAdapters::SQLite3Adapter
+  attr_reader :connection
 end

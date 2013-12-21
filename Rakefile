@@ -1,6 +1,26 @@
-# Add your own tasks in files placed in lib/tasks ending in .rake,
-# for example lib/tasks/capistrano.rake, and they will automatically be available to Rake.
+$: << '.'
+$: << 'lib'
+$: << 'app/models'
 
-require File.expand_path('../config/application', __FILE__)
+require 'active_record'
 
-Rails.application.load_tasks
+task :environment do
+  require 'rake/application'
+  require 'config/application'
+end
+
+task :test do
+  $: << 'test'
+  Dir['test/**/*.rb'].each do |file|
+    require file
+  end
+end
+
+Rake.application.rake_require 'active_record/railties/databases'
+
+# So that schema dumping doesn't blow up. :-/
+# https://github.com/rails/rails/blob/92f9ff8cc325d72d74cbf839ac9ac0acd474a768/activerecord/lib/active_record/railties/databases.rake#L242
+ActiveRecord::Tasks::DatabaseTasks.db_dir = 'db'
+
+Rake.application.rake_require 'tasks/categorize'
+Rake.application.rake_require 'tasks/download'

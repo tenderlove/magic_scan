@@ -1,9 +1,18 @@
 require 'test_helper'
+require 'reference_image'
+require 'card'
 
-class ImageTest < ActiveSupport::TestCase
-  FIXTURES = File.join Rails.root, 'test', 'fixtures'
+class ImageTest < Minitest::Test
+  ROOT = File.expand_path File.join(File.dirname(__FILE__), '..', '..')
+  FIXTURES = File.join ROOT, 'test', 'fixtures'
 
-  fixtures :cards
+  def setup
+    ActiveRecord::Base.connection.begin_transaction
+  end
+
+  def teardown
+    ActiveRecord::Base.connection.rollback_transaction
+  end
 
   def test_find_by_hash
     file = File.join(FIXTURES, 'cremate.jpg')

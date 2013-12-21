@@ -1,3 +1,4 @@
+desc "Categorize the cards"
 task :categorize => :environment do
   require 'magic_scan/categorizer'
 
