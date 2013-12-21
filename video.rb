@@ -17,7 +17,7 @@ class Processor
   end
 end
 
-class FindAndCrop
+class Cropper
   attr_reader :width, :height, :to
 
   def initialize width, height
@@ -31,27 +31,25 @@ class FindAndCrop
     @height = height
   end
 
-  def process processed, img
-    strategy = MagicScan::Contours::Simple.new img
-    from = strategy.corners processed, img
-
-    unless from.empty?
-      transform = OpenCV::CvMat.get_perspective_transform(from, to)
-      new_img = img.warp_perspective transform
-      new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
-      yield new_img
-    end
+  def process from, img
+    transform = OpenCV::CvMat.get_perspective_transform(from, to)
+    new_img = img.warp_perspective transform
+    new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
+    yield new_img
   end
 end
 
 frames = MagicScan::Frames.new dev
-fc = FindAndCrop.new 233, 310
+fc = Cropper.new 233, 310
 processor = Processor.new
+corners = MagicScan::Contours::Simple.new
 
 frames.each do |img|
   processor.process img do |canny|
-    fc.process(canny, img) do |cut|
-      win.show_image cut
+    corners.process(canny, img) do |points|
+      fc.process(points, img) do |cut|
+        win.show_image cut
+      end
     end
   end
   if 113 == OpenCV::GUI.wait_key(10)

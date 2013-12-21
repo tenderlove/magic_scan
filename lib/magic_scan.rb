@@ -53,11 +53,7 @@ module MagicScan
 
   module Contours
     class Simple
-      def initialize img
-        @img = img
-      end
-
-      def corners processed, img
+      def process processed, img
         contours = []
         contour_node = processed.find_contours(:mode   => OpenCV::CV_RETR_TREE,
                                             :method => OpenCV::CV_CHAIN_APPROX_SIMPLE)
@@ -91,15 +87,8 @@ module MagicScan
         if top_length > side_length
           []
         else
-          clockwise_points
+          yield clockwise_points
         end
-      end
-
-      def processed_image img
-        gray = OpenCV.BGR2GRAY img
-        #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
-        #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
-        gray.canny 100, 100
       end
 
       private
