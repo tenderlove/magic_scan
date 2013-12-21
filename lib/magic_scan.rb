@@ -46,6 +46,7 @@ module MagicScan
       transform = OpenCV::CvMat.get_perspective_transform(from, to)
       new_img = img.warp_perspective transform
       new_img.set_roi OpenCV::CvRect.new(0, 0, width, height)
+      yield new_img
       new_img.encode_image(".jpg").pack 'C*'
     end
   end
@@ -74,6 +75,7 @@ module MagicScan
         max = contours.max_by { |c| c.contour_area }
 
         return [] unless max
+        return [] unless max.contour_area > 100_00
 
         peri = max.arc_length
         approx = max.approx_poly(:method => :dp,
@@ -176,31 +178,6 @@ module MagicScan
     contours = edges.find_contours
     contours.each do |contour|
       p contours.length
-    end
-  end
-
-  class Frames
-    include Enumerable
-
-    def initialize dev
-      @dev = dev
-      @session = AVCapture::Session.new # AVCaptureSession
-      @output  = AVCapture::StillImageOutput.new # AVCaptureOutput subclass
-      @session.add_input @dev.as_input
-      @session.add_output @output
-      @session.start_running!
-      @connection = @output.video_connection
-    end
-
-    def next_image
-      image = @output.capture_on @connection
-      OpenCV::IplImage.decode_image image.data.bytes
-    end
-
-    def each
-      loop do
-        yield next_image
-      end
     end
   end
 
