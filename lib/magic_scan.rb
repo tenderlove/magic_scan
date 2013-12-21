@@ -57,9 +57,7 @@ module MagicScan
         @img = img
       end
 
-      def corners
-        processed = processed_image @img
-
+      def corners processed, img
         contours = []
         contour_node = processed.find_contours(:mode   => OpenCV::CV_RETR_TREE,
                                             :method => OpenCV::CV_CHAIN_APPROX_SIMPLE)
@@ -85,7 +83,7 @@ module MagicScan
         x = approx.convex_hull2.to_a
         clockwise_points = clockwise x.map { |point|
           OpenCV::CvPoint2D32f.new(point)
-        }, @img.size
+        }, img.size
 
         top_length = distance clockwise_points[0], clockwise_points[1]
         side_length = distance clockwise_points[0], clockwise_points[3]
@@ -95,6 +93,13 @@ module MagicScan
         else
           clockwise_points
         end
+      end
+
+      def processed_image img
+        gray = OpenCV.BGR2GRAY img
+        #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
+        #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
+        gray.canny 100, 100
       end
 
       private
@@ -128,13 +133,6 @@ module MagicScan
         end
         show img
         points
-      end
-
-      def processed_image img
-        gray = OpenCV.BGR2GRAY img
-        #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
-        #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
-        gray.canny 100, 100
       end
 
       def show img

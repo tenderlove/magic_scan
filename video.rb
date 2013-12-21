@@ -8,6 +8,15 @@ dev = AVCapture.devices.find(&:video?) # AVCaptureDevice
 win = OpenCV::GUI::Window.new 'omg'
 win.resize 233, 310
 
+class Processor
+  def process img
+    gray = OpenCV.BGR2GRAY img
+    #blur = gray.smooth(OpenCV::CV_GAUSSIAN)
+    #thresh = blur.threshold(50, 255, OpenCV::CV_THRESH_BINARY)
+    yield gray.canny 100, 100
+  end
+end
+
 class FindAndCrop
   attr_reader :width, :height, :to
 
@@ -22,9 +31,9 @@ class FindAndCrop
     @height = height
   end
 
-  def process img
+  def process processed, img
     strategy = MagicScan::Contours::Simple.new img
-    from = strategy.corners
+    from = strategy.corners processed, img
 
     unless from.empty?
       transform = OpenCV::CvMat.get_perspective_transform(from, to)
@@ -37,10 +46,13 @@ end
 
 frames = MagicScan::Frames.new dev
 fc = FindAndCrop.new 233, 310
+processor = Processor.new
 
 frames.each do |img|
-  fc.process(img) do |cut|
-    win.show_image cut
+  processor.process img do |canny|
+    fc.process(canny, img) do |cut|
+      win.show_image cut
+    end
   end
   if 113 == OpenCV::GUI.wait_key(10)
     break
