@@ -9,6 +9,9 @@ require 'user_image'
 require 'card'
 require 'reference_image'
 require 'config/application'
+require 'logger'
+
+ActiveRecord::Base.logger = Logger.new 'log/development.log'
 
 dev = AVCapture.devices.find(&:video?) # AVCaptureDevice
 
@@ -46,6 +49,8 @@ def build card_id, jpg, hash
   end
 end
 
+mode = :scanning
+
 MagicScan::Photo.run dev do |cut|
   jpg   = MagicScan::Photo.to_jpg cut
   hash  = MagicScan::Photo.hash_from_buffer jpg
@@ -68,13 +73,48 @@ MagicScan::Photo.run dev do |cut|
 
   img.reset_roi
   win.show_image img
-  case val = OpenCV::GUI.wait_key
-  when 113 then break # q
-  when 49, 50, 51 # 1, 2, or 2
-    row = rows[val - 49]
-    build row[2], jpg, hash
-    puts "Saved #{row[0]}"
+
+  if mode == :scanning
+    case val = OpenCV::GUI.wait_key(10)
+    when 113 then break # q
+    when 115 then mode = :slow # s
+    when 117 # u
+      ui = UserImage.find(UserImage.maximum(:id))
+      p "deleted #{ui.cards.map(&:name)}"
+      ui.destroy
+    when 104 # h
+      print "Enter card id: "
+      card = Card.find gets.to_i
+      build card.id, jpg, hash
+      puts "Saved #{card.name}"
+    when 49, 50, 51 # 1, 2, or 2
+      row = rows[val - 49]
+      build row[2], jpg, hash
+      puts "Saved #{row[0]}"
+    when nil
+    else
+      p val
+    end
   else
-    p val
+    case val = OpenCV::GUI.wait_key
+    when 113 then break # q
+    when 115 then mode = :scanning # s
+    when 117 # u
+      ui = UserImage.find(UserImage.maximum(:id))
+      p "deleted #{ui.cards.map(&:name)}"
+      ui.destroy
+    when 104 # h
+      print "Enter card id: "
+      card = Card.find gets.to_i
+      build card.id, jpg, hash
+      puts "Saved #{card.name}"
+    when 49, 50, 51 # 1, 2, or 2
+      row = rows[val - 49]
+      build row[2], jpg, hash
+      puts "Saved #{row[0]}"
+      mode = :scanning
+    else
+      p val
+    end
   end
 end
