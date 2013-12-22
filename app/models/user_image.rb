@@ -11,6 +11,10 @@ class UserImage < Image
     tf.close
     tf.unlink
 
+    build_with_hash_and_bytes fingerprint, bytes
+  end
+
+  def self.build_with_hash_and_bytes fingerprint, bytes
     digest = Digest::MD5.hexdigest bytes
     dest_dir = File.join 'app', 'assets', 'images', digest[0,2]
     dest_file = File.join dest_dir, "#{digest}.jpg"

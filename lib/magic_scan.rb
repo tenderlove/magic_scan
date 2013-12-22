@@ -1,6 +1,7 @@
 require 'opencv'
 require 'av_capture'
 require 'phashion'
+require 'tempfile'
 
 module MagicScan
   module Photo
@@ -26,6 +27,16 @@ module MagicScan
           end
         end
       end
+    end
+
+    def self.hash_from_buffer buf
+      tf = Tempfile.open 'whatever'
+      tf.write buf
+      tf.flush
+      tf.close
+      Phashion.image_hash_for tf.path
+    ensure
+      tf.unlink
     end
 
     def self.to_jpg img
