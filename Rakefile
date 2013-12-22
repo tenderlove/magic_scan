@@ -16,6 +16,12 @@ task :test do
   end
 end
 
+task :console => :environment do
+  require 'irb'
+  ARGV.clear # otherwise all script parameters get passed to IRB
+  IRB.start
+end
+
 Rake.application.rake_require 'active_record/railties/databases'
 
 # So that schema dumping doesn't blow up. :-/
