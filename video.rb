@@ -11,6 +11,14 @@ require 'reference_image'
 require 'config/application'
 require 'logger'
 
+def build card_id, jpg, hash
+  UserImage.transaction do
+    ui = UserImage.build_with_hash_and_bytes hash, jpg
+    ui.save!
+    Card.find(card_id).images << ui
+  end
+end
+
 ActiveRecord::Base.logger = Logger.new 'log/development.log'
 
 dev = AVCapture.devices.find(&:video?) # AVCaptureDevice
@@ -41,14 +49,6 @@ img = OpenCV::IplImage.new((limit + 1) * WIDTH, HEIGHT)
 win = OpenCV::GUI::Window.new 'omg'
 win.resize img.size.width, img.size.height
 
-def build card_id, jpg, hash
-  UserImage.transaction do
-    ui = UserImage.build_with_hash_and_bytes hash, jpg
-    ui.save!
-    Card.find(card_id).images << ui
-  end
-end
-
 mode = :scanning
 
 MagicScan::Photo.run dev do |cut|
@@ -74,47 +74,41 @@ MagicScan::Photo.run dev do |cut|
   img.reset_roi
   win.show_image img
 
+  wait = nil
   if mode == :scanning
-    case val = OpenCV::GUI.wait_key(10)
-    when 113 then break # q
-    when 115 then mode = :slow # s
-    when 117 # u
-      ui = UserImage.find(UserImage.maximum(:id))
-      p "deleted #{ui.cards.map(&:name)}"
-      ui.destroy
-    when 104 # h
-      print "Enter card id: "
-      card = Card.find gets.to_i
-      build card.id, jpg, hash
-      puts "Saved #{card.name}"
-    when 49, 50, 51 # 1, 2, or 2
-      row = rows[val - 49]
-      build row[2], jpg, hash
-      puts "Saved #{row[0]}"
-    when nil
-    else
-      p val
-    end
-  else
-    case val = OpenCV::GUI.wait_key
-    when 113 then break # q
-    when 115 then mode = :scanning # s
-    when 117 # u
-      ui = UserImage.find(UserImage.maximum(:id))
-      p "deleted #{ui.cards.map(&:name)}"
-      ui.destroy
-    when 104 # h
-      print "Enter card id: "
-      card = Card.find gets.to_i
-      build card.id, jpg, hash
-      puts "Saved #{card.name}"
-    when 49, 50, 51 # 1, 2, or 2
-      row = rows[val - 49]
-      build row[2], jpg, hash
-      puts "Saved #{row[0]}"
+    wait = 10
+  end
+
+  case val = OpenCV::GUI.wait_key(wait)
+  when 113 then exit # q
+  when 115 then
+    if mode == :slow
       mode = :scanning
     else
-      p val
+      mode = :slow
     end
+  when 117 # u
+    ui = UserImage.find(UserImage.maximum(:id))
+    p "deleted #{ui.cards.map(&:name)}"
+    ui.destroy
+  when 104 # h
+    print "Enter card id: "
+    card = Card.find gets.to_i
+    build card.id, jpg, hash
+    puts "Saved #{card.name}"
+  when 49, 50, 51 # 1, 2, or 2
+    row = rows[val - 49]
+    build row[2], jpg, hash
+    puts "Saved #{row[0]}"
+    mode = :scanning
+  when 120
+    puts "#" * 90
+    rows.each do |row|
+      p row
+    end
+    puts "#" * 90
+  when nil
+  else
+    p val
   end
 end
