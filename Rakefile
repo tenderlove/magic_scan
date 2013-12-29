@@ -22,6 +22,20 @@ task :console => :environment do
   IRB.start
 end
 
+task :create_migration, :name do |t, args|
+  t = Time.now.utc
+  s = t.strftime("%Y%m%d%H%M%S")
+  n = args[:name]
+  File.open("db/migrate/#{s}_#{n.downcase.gsub(/\s/, '_')}.rb", 'w') do |f|
+    f.write <<-eofile
+class #{n.split(/\s/).map(&:capitalize).join} < ActiveRecord::Migration
+  def change
+  end
+end
+    eofile
+  end
+end
+
 Rake.application.rake_require 'active_record/railties/databases'
 
 # So that schema dumping doesn't blow up. :-/

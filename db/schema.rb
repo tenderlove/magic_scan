@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20131219004137) do
+ActiveRecord::Schema.define(version: 20131229024055) do
 
   create_table "cards", force: true do |t|
     t.string   "name"
@@ -39,12 +39,13 @@ ActiveRecord::Schema.define(version: 20131219004137) do
   add_index "cards_images", ["image_id"], name: "index_cards_images_on_image_id"
 
   create_table "images", force: true do |t|
-    t.string   "type",          null: false
-    t.integer  "fingerprint_l", null: false
-    t.integer  "fingerprint_r", null: false
-    t.string   "filename",      null: false
+    t.string   "type",                          null: false
+    t.integer  "fingerprint_l",                 null: false
+    t.integer  "fingerprint_r",                 null: false
+    t.string   "filename",                      null: false
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.boolean  "needs_review",  default: false
   end
 
   add_index "images", ["filename"], name: "index_images_on_filename", unique: true
