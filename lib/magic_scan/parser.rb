@@ -30,7 +30,8 @@ module MagicScan
         :pt                  => pt,
         :rarity              => rarity,
         :rating              => rating,
-        :mv_id               => mv_id
+        :mv_id               => mv_id,
+        :expansion           => expansion,
       }
     end
 
@@ -48,6 +49,11 @@ module MagicScan
       else
         nil
       end
+    end
+
+    def expansion
+      node = doc.at_css "##{id}_currentSetSymbol"
+      node.text.strip
     end
 
     def converted_mana_cost

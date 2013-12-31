@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20131229024055) do
+ActiveRecord::Schema.define(version: 20131231054756) do
 
   create_table "cards", force: true do |t|
     t.string   "name"
@@ -25,8 +25,10 @@ ActiveRecord::Schema.define(version: 20131229024055) do
     t.float    "rating"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.string   "expansion"
   end
 
+  add_index "cards", ["expansion"], name: "index_cards_on_expansion"
   add_index "cards", ["mv_id"], name: "index_cards_on_mv_id"
 
   create_table "cards_images", id: false, force: true do |t|
