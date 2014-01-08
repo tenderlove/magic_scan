@@ -90,12 +90,10 @@ module MagicScan
           contour_node = contour_node.h_next
         end
 
-        contours = contours.find_all { |c| c.length > 10 }
-
         max = contours.max_by { |c| c.contour_area }
 
         return unless max
-        return unless max.contour_area > 100_00
+        return unless max.contour_area > 10_000
 
         peri = max.arc_length
         approx = max.approx_poly(:method => :dp,
@@ -103,15 +101,18 @@ module MagicScan
                                  :accuracy => 0.02 * peri)
 
         x = approx.convex_hull2.to_a
-        clockwise_points = clockwise x.map { |point|
-          OpenCV::CvPoint2D32f.new(point)
-        }, img.size
+
+        return unless x.length == 4
+
+        clockwise_points = clockwise x.reverse
 
         top_length = distance clockwise_points[0], clockwise_points[1]
         side_length = distance clockwise_points[0], clockwise_points[3]
 
         unless top_length > side_length
-          yield clockwise_points
+          yield clockwise_points.map { |point|
+            OpenCV::CvPoint2D32f.new(point)
+          }
         end
       end
 
@@ -121,17 +122,13 @@ module MagicScan
       end
 
       # probably a better way, but care =~ 0
-      def clockwise points, size
-        [
-          [0, 0],                    # upper left
-          [size.width, 0],           # upper right
-          [size.width, size.height], # bottom right
-          [0, size.height],          # bottom left
-        ].map { |x,y|
-          points.min_by { |point|
-            Math.sqrt(((point.x - x) ** 2) + ((point.y - y) ** 2))
-          }
-        }
+      def clockwise points
+        ul = Struct.new(:x, :y).new 0, 0
+        upper_left = points.min_by { |point| distance point, ul }
+        until points.first == upper_left
+          points = points.rotate
+        end
+        points
       end
 
       def debug_points points, img

@@ -69,7 +69,7 @@ module MagicScan
           img = ReferenceImage.create!(:fingerprint => info.fingerprint,
                                        :filename    => info.dest_file)
         end
-        img_cards = img.cards
+        img_cards = img.cards.to_a
         info.cards.each do |card_info|
           card = make_card card_info
           unless img_cards.include? card

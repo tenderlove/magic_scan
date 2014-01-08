@@ -96,6 +96,11 @@ MagicScan::Photo.run dev do |cut|
     card = Card.find gets.to_i
     build card.id, jpg, hash
     puts "Saved #{card.name}"
+  when 114 # r for Review
+    ui = UserImage.build_with_hash_and_bytes hash, jpg
+    ui.needs_review = true
+    ui.save!
+    puts "Saved card for review"
   when 49, 50, 51 # 1, 2, or 2
     row = rows[val - 49]
     build row[2], jpg, hash
